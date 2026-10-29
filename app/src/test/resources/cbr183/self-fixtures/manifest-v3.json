@@ -1,0 +1,53 @@
+{
+  "origin": "Self-authored stored wire containers; no compression algorithm; native raster/cache tests",
+  "files": {
+    "bad-final-raster.cbr": {
+      "bytes": 171,
+      "sha256": "1d246e12d953c067038b62080a289d2a9d555d0103c7a3353a6e7a02332436fe"
+    },
+    "shuffled-rar5.cbr": {
+      "bytes": 230,
+      "sha256": "487e7fb7937f901e5dcd4d88173a9d1e762afc5a735999dc33e5f69694eb994e"
+    },
+    "cache-0.cbr": {
+      "bytes": 262,
+      "sha256": "fe962e3b15563bbd9a531a40771d279bfd68a0f819a68859d3abb10393c71a84"
+    },
+    "cache-1.cbr": {
+      "bytes": 262,
+      "sha256": "908bb13ebc65ba8e86c6190587099f0347cc9244bf9dfd2d2804b8299a1dc746"
+    },
+    "cache-2.cbr": {
+      "bytes": 262,
+      "sha256": "e86aea8fbc2acbc4fd848c73ed9a29db11bed5dd7403271d408df35d3c5e8147"
+    },
+    "cache-3.cbr": {
+      "bytes": 262,
+      "sha256": "b626de71ae884c40ee16bfaa858720a994a155f3f18da62756bcc4c249c5ae75"
+    },
+    "cache-4.cbr": {
+      "bytes": 262,
+      "sha256": "da3457af87c3b4f6302759a7c910ede99bac1738a745823101692af97e86fb1e"
+    },
+    "cache-5.cbr": {
+      "bytes": 262,
+      "sha256": "02bf8255f899c71720ae75d6a950f7a9f14432ce9704e37aede9d6a9e497d2fa"
+    },
+    "cache-6.cbr": {
+      "bytes": 262,
+      "sha256": "6fb4185e225c49bb975d70a4461501dce5a88ad12e75cbe8dd076f2f729465d7"
+    },
+    "cache-7.cbr": {
+      "bytes": 262,
+      "sha256": "80272a95016ae4e84a893d3441e2f08d9f983fed480c120edb9220c478fd5962"
+    },
+    "cache-8.cbr": {
+      "bytes": 262,
+      "sha256": "a3de2602c0a32b5c682b90c9bd8468392fad353f22e77d31aadcc6cc3634d6cc"
+    },
+    "cache-9.cbr": {
+      "bytes": 262,
+      "sha256": "79923bf8bf4a739f82262deef7a17cb9f3ec92ef50741a895608dc426d4230f7"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="study_export_format_notion">Notion için CSV · çalışma kayıtları</string>
+    <string name="study_export_format_notion_help">Bu kitabın notları, kelimeleri ve kayıtlı EPUB/PDF pasajları ayrı satırlar olur; bağlı not pasajla aynı satırdadır. Dosyayı Notion’un masaüstü/web sürümünde Ayarlar → İçe aktar → CSV ile aç; metin sütunlarını Metin olarak eşle. Tekrar içe aktarma yeni satırlar ekler. En fazla 5 MB; sığmayan kayıtlar sessizce atlanmaz. Kitabın dosyası aktarılmaz.</string>
+</resources>

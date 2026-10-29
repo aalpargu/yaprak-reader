@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- ML Kit's transport checks connectivity; its normal permission needs no runtime prompt. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Library imports never require network or broad storage access. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+    <application
+        android:name=".YaprakApplication"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Yaprak">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".feature.reader.ReaderActivity" android:exported="false" />
+        <activity android:name=".feature.librarynotes.LibraryNotesActivity" android:exported="false" />
+        <activity android:name=".feature.librarywords.LibraryWordsActivity" android:exported="false" />
+        <activity android:name=".feature.librarylabels.LibraryLabelsActivity" android:exported="false" />
+        <activity android:name=".feature.wordreview.WordReviewActivity" android:exported="false" />
+        <activity android:name=".feature.search.LibraryTextSearchActivity" android:exported="false" />
+        <activity android:name=".feature.assistant.BookAssistantActivity" android:exported="false" />
+        <activity android:name=".feature.statistics.ReadingStatisticsActivity" android:exported="false" />
+    </application>
+</manifest>

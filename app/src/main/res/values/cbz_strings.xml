@@ -1,0 +1,7 @@
+<resources>
+    <string name="filter_cbz">CBZ</string>
+    <string name="cbz_loading">Görsel sayfa yükleniyor</string>
+    <string name="cbz_page_failed">Bu görsel sayfa açılamadı. Kaynağı kontrol edip yeniden deneyebilirsin.</string>
+    <string name="cbz_page_description">Sayfa %1$d / %2$d. Yakınlaştırmak için iki kez dokun veya iki parmağını kullan.</string>
+    <string name="library_text_cbz_unsupported">CBZ görsel sayfaları metin aramasını desteklemiyor.</string>
+</resources>

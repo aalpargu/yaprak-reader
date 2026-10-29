@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_docx_scope">Bu DOCX’in çıkarılmış özgün metninde anahtar kelime araması yapılır; referans verilen dipnotlar ve sonnotlar da dahil olabilir. Görsellerdeki yazı aranmaz. Bu, anlam temelli arama veya “şu ana kadar” kapsamı değildir; okunmamış metin çıkabilir.</string>
+    <string name="assistant_mode_docx_document">DOCX belgesinin bütün metnini seç</string>
+    <string name="assistant_docx_document_scope">Belgenin desteklenen bütün çıkarılmış metni ve referans verilen not metinleri kullanılır. Görseller, Word sayfa düzeni ve resimdeki yazı dahil değildir. Bu kapsam Word bölümü veya okunmuş kısım değildir; spoiler içerebilir.</string>
+    <string name="assistant_load_docx_document">DOCX belge kaynağını göster</string>
+    <string name="assistant_no_docx_document">İndekste boş olmayan DOCX metni bulunamadı. Görseller otomatik taranmaz.</string>
+    <string name="assistant_docx_document_parts">Belge metni · kaynak parçası: %1$d</string>
+    <string name="assistant_docx_document_choose">Bu belge metnini seç</string>
+    <string name="assistant_docx_document_selected">Seçilen belge metni</string>
+    <string name="assistant_docx_document_source_count">Belgenin bütün çıkarılmış metni · kaynak parçası: %1$d. Parçalar sınırda örtüşebilir. Görseller ve Word sayfa düzeni kullanılmaz.</string>
+    <string name="assistant_docx_document_summary">Belgenin çıkarılmış metnini özetle</string>
+    <string name="assistant_docx_open">Belgenin başını aç</string>
+    <string name="assistant_docx_document_limit_error">Belgenin bütün metni gönderim sınırını aşıyor. Anahtar kelime aramasına dönüp ilgili kaynakları seçebilirsin. Eksik metin tam belge diye hazırlanmadı.</string>
+    <string name="assistant_docx_document_send_help">Gönder, sorunu ve DOCX belgesinin önizlenen bütün çıkarılmış metnini seçtiğin sunucuya iletir; en fazla 64 kaynak parçası kullanılır. Güncel Yaprak sunucusu gerekir; sunucu metinleri OpenAI’a iletir ve internet gerekir. Özgün dosya, kişisel notlar ve okuma geçmişi gönderilmez. Bağlandığın sunucunun veri politikasına güvenmelisin.</string>
+    <string name="assistant_docx_keyword_send_help">Gönder, sorunu ve önizlediğin en fazla 8 özgün metin parçasını seçtiğin sunucuya iletir. Bu parçalar kitabın referans verilen dipnotlarını ve sonnotlarını da içerebilir. Sunucu metinleri OpenAI’a iletir; internet gerekir. Özgün DOCX dosyası, kişisel notlar ve okuma geçmişi gönderilmez. Bağlandığın sunucunun veri politikasına güvenmelisin.</string>
+</resources>

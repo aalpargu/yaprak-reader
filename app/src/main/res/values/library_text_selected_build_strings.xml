@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_text_selected_rebuild_help">Yalnız Arama sekmesinde seçtiğin kitabın metin indeksi hazırlanır; diğer kitapların indeksleri korunur. Kitap seçimini Arama sekmesinden değiştirebilirsin. Görseller kendiliğinden OCR metni olmaz.</string>
+    <string name="library_text_selected_rebuild">Yalnız seçili kitabın indeksini yeniden oluştur</string>
+    <string name="library_text_selected_ready">Seçili kitabın metin indeksi hazırlandı.</string>
+    <string name="library_text_selected_no_text">Seçili kitapta çıkarılabilir metin bulunamadı. Görseller otomatik OCR kaynağına dönüşmedi.</string>
+    <string name="library_text_selected_unsupported">Seçili kitabın metni mevcut çıkarıcıyla hazırlanamadı; desteklenmeyen içerik var.</string>
+    <string name="library_text_selected_limit">Seçili kitabın metni hazırlama sınırını aşıyor. Eksik metin hazır indeks diye kullanılmadı.</string>
+    <string name="library_text_selected_failed">Seçili kitabın metin indeksi hazırlanamadı. Özgün kitap ve yerel kaynak durumunu kontrol ederek yeniden deneyebilirsin.</string>
+</resources>

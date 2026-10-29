@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pdf_search_scope">PDF araması Android 15 ve sonrasında çalışır. Yalnız açık kitabın çıkarılabilen yazıları cihazda aranır; tüm sayfalar kaynak sırasıyla taranır. OCR yapılmaz. Resim olarak taranmış veya yazı kaynağı bozuk PDF’lerde eşleşme bulunamayabilir. Sonuca dokunmak ilgili sayfayı açar; kelimeyi seçmez veya vurgulamaz.</string>
+    <string name="pdf_search_idle">Ara düğmesi bütün PDF’de metin aramasını başlatır. Büyük/küçük harf ayrımı yapılmaz; kelimeler arasındaki boşluklar birleştirilir. Soru anlamına göre arama yapılmaz. Sorgu yazmak veya bu pencereyi açmak tarama başlatmaz.</string>
+    <string name="pdf_search_unsupported">Bu Android sürümünde yerel PDF metin araması desteklenmiyor. Android 15 veya sonrası gerekir. PDF okuma, sayfa notları ve yer imleri kullanılabilir.</string>
+    <string name="pdf_search_limit">PDF’nin çıkarılan metni desteklenen tarama sınırını aştı. Arama tamamlanmadı; kısmi sonuç gösterilmez.</string>
+</resources>

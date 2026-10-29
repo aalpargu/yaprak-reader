@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reading_streak_current">Güncel okuma serisi: %1$d gün</string>
+    <string name="reading_streak_longest">En uzun kayıtlı seri: %1$d gün</string>
+    <string name="reading_streak_last">Son kayıtlı okuma günü: %1$s</string>
+    <string name="reading_streak_help">Seri, pozitif okuma süresi kaydedilmiş ardışık günleri gösterir. Hedefini tamamlaman gerekmez. Bugün henüz kayıt yoksa dünkü seri gösterilir. Gelecek tarihler sayılmaz; sonuç mevcut kitaplığın kayıtlarına dayanır.</string>
+</resources>

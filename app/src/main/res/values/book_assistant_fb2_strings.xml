@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_fb2_scope">Bu FB2’nin özgün metninde anahtar kelime araması yapılır; okunmamış bölümler ve dipnotlar da çıkabilir. Bu, anlam temelli arama veya “şu ana kadar” kapsamı değildir. Önce ilgili az sayıda kelimeyle kaynakları hazırla.</string>
+    <string name="assistant_mode_fb2_part">Bir FB2 metin parçasını seç</string>
+    <string name="assistant_fb2_part_scope">FB2’den özgün bir metin parçası seç. Parça iç içe bölümleri de içerebilir; bir içindekiler başlığıyla aynı kapsamı garanti etmez. Yalnız seçilen parçanın metni kullanılır. Bu kapsam okunmuş kısımla sınırlı değildir; spoiler içerebilir.</string>
+    <string name="assistant_load_fb2_parts">FB2 metin parçalarını listele</string>
+    <string name="assistant_no_fb2_parts">İndekste boş olmayan FB2 metin parçası bulunamadı.</string>
+    <string name="assistant_fb2_part_parts">Metin %1$d · kaynak parçası: %2$d</string>
+    <string name="assistant_fb2_part_choose">Bu FB2 metin parçasını seç</string>
+    <string name="assistant_fb2_part_selected">Seçilen FB2 metin parçası</string>
+    <string name="assistant_fb2_part_source_count">Seçilen FB2 parçasının bütün çıkarılmış metni · kaynak parçası: %1$d. Kaynaklar sınırda örtüşebilir; yalnız bu metin parçası kullanılır.</string>
+    <string name="assistant_fb2_part_summary">Seçilen FB2 parçasının özetini iste</string>
+    <string name="assistant_fb2_open">Alıntının FB2 metin parçasını aç · parça başlangıcı</string>
+</resources>

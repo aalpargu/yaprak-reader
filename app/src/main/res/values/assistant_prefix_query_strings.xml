@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_mode_prefix_keywords">Seçtiğim sınıra kadar anahtar kelimeyle ara</string>
+    <string name="assistant_prefix_query_scope">Gerçek bir içindekiler kaydını bitiş sınırı olarak seç ve anahtar kelimeleri yaz. Kitabın başından bu kaydın sonuna kadar metin parçalarında arama yapılır; sonraki metin aramaya katılmaz. Sözcük başlangıçları aranır ve yazdığın sözcüklerin hepsi aynı parçada bulunmalıdır. Bu bir anlam benzerliği araması veya bütün kapsamın özeti değildir. Okuma yüzdesinden sınır çıkarılmaz.</string>
+    <string name="assistant_prefix_query_choose_help">Yalnız bu kaydın sonuna kadar anahtar kelime araması yapılır. Önizleme bütün bu metni içermez; en fazla 8 eşleşen parçayı gösterir.</string>
+    <string name="assistant_prefix_query_chosen">Şu kaydın sonuna kadar anahtar kelime sonuçları: %1$s</string>
+    <!-- Turkish counted nouns keep the singular form in both quantity classes. -->
+    <plurals name="assistant_prefix_query_source_count">
+        <item quantity="one">Seçilen başlangıç kapsamında toplam %2$d eşleşen metin parçası bulundu; ilk %1$d parça önizleniyor. Bunlar bütün kapsamın özeti değildir.</item>
+        <item quantity="other">Seçilen başlangıç kapsamında toplam %2$d eşleşen metin parçası bulundu; ilk %1$d parça önizleniyor. Bunlar bütün kapsamın özeti değildir.</item>
+    </plurals>
+    <string name="assistant_prefix_query_send_help">Yalnız önizlediğin en fazla 8 eşleşen metin parçası ve sorun yapılandırdığın sunucuya gönderilir. Kitap, gerçek bitiş sınırı ve aynı sonuçlar gönderimden önce yeniden doğrulanır. Sonraki metin, okuma geçmişi ve kişisel notlar gönderilmez. Yanıt bütün kapsamı veya hikâyedeki olayların zamanını garanti etmez.</string>
+    <string name="assistant_prefix_query_failure">Bu sınır içindeki kaynaklar hazırlanamadı. İndeks ve özgün kitabı kontrol et; farklı anahtar kelimeler veya açıkça başka bir sınır seçebilirsin. Kitabın tamamına kendiliğinden geçilmez. Metin ya da kaynak sınırı aşılırsa eksik sonuç hazır sayılmaz.</string>
+</resources>

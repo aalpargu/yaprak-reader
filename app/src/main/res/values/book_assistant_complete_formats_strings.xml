@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_mode_pdf_page">Bir PDF sayfasının metnini seç</string>
+    <string name="assistant_mode_txt_part">Bir TXT metin parçasını seç</string>
+    <string name="assistant_pdf_page_scope">Metin içeren gerçek bir PDF sayfasını seç. Yalnız o sayfanın çıkarılmış metni kullanılır; görseller, sayfa düzeni ve OCR eklenmez. Metin içermeyen sayfalar listelenmez. Bu kapsam okunmuş kısımla sınırlı değildir; spoiler içerebilir.</string>
+    <string name="assistant_txt_part_scope">TXT’den bir metin parçası seç. Parçalar dosya boyutuna göre ayrılır; kitabın bölümleri değildir. Yalnız seçilen parçanın metni kullanılır. Bu kapsam okunmuş kısımla sınırlı değildir; spoiler içerebilir.</string>
+    <string name="assistant_load_pdf_pages">Metin içeren PDF sayfalarını listele</string>
+    <string name="assistant_load_txt_parts">TXT metin parçalarını listele</string>
+    <string name="assistant_no_pdf_pages">İndekste metin içeren PDF sayfası bulunamadı. Görseller otomatik taranmaz.</string>
+    <string name="assistant_no_txt_parts">İndekste boş olmayan TXT metin parçası bulunamadı.</string>
+    <string name="assistant_pdf_page_title">PDF sayfası %1$d</string>
+    <string name="assistant_pdf_page_parts">PDF sayfası: %1$d · kaynak parçası: %2$d</string>
+    <string name="assistant_txt_part_parts">Metin %1$d · kaynak parçası: %2$d</string>
+    <string name="assistant_pdf_page_choose">Bu sayfanın metnini seç</string>
+    <string name="assistant_txt_part_choose">Bu metin parçasını seç</string>
+    <string name="assistant_pdf_page_selected">Seçilen PDF sayfası</string>
+    <string name="assistant_txt_part_selected">Seçilen TXT metin parçası</string>
+    <string name="assistant_pdf_page_source_count">Seçilen PDF sayfasının bütün çıkarılmış metni · kaynak parçası: %1$d. Parçalar sınırda örtüşebilir; yalnız bu sayfa kullanılır.</string>
+    <string name="assistant_txt_part_source_count">Seçilen TXT parçasının bütün çıkarılmış metni · kaynak parçası: %1$d. Kaynaklar sınırda örtüşebilir; yalnız bu metin parçası kullanılır.</string>
+    <string name="assistant_pdf_page_summary">Seçilen PDF sayfasının özetini iste</string>
+    <string name="assistant_txt_part_summary">Seçilen TXT parçasının özetini iste</string>
+    <string name="assistant_complete_part_too_large">Kaynağın tamamı tek gönderim sınırını aşıyor. Bir kısmı atlanarak tam özet hazırlanmaz.</string>
+    <string name="assistant_complete_part_limit_error">Seçilen kaynağın tamamı gönderim sınırını aşıyor. Başka sayfa veya metin parçası seç; istersen anahtar kelime aramasına dön. Kısmi metin tam kaynak diye hazırlanmadı.</string>
+    <string name="assistant_complete_part_send_help">Gönder, sorunu ve seçtiğin sayfa veya TXT/FB2 parçasının önizlenen bütün metnini seçtiğin sunucuya iletir; en fazla 64 kaynak parçası kullanılır. Güncel Yaprak sunucusu gerekir; sunucu metinleri OpenAI’a iletir ve internet gerekir. Kitap dosyası, notlar ve okuma geçmişi gönderilmez. Bağlandığın sunucunun veri politikasına güvenmelisin.</string>
+</resources>

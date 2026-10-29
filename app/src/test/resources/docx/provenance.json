@@ -1,0 +1,17 @@
+{
+  "producer": "python-docx",
+  "version": "1.2.0",
+  "scope": "Owned interoperability fixtures only; no user document or app integration acceptance",
+  "fixtures": [
+    {
+      "file": "python-docx-basic.docx",
+      "bytes": 36931,
+      "sha256": "e8fb39c1fd89a0ac39a288a9ca9ad3f0842fde419461f283841d2ad0fa83470d"
+    },
+    {
+      "file": "python-docx-numbered.docx",
+      "bytes": 36971,
+      "sha256": "7a3d6b553289df589faa87247b4d31dc99c59e2d200ed8d5362e1a9d786dfaeb"
+    }
+  ]
+}

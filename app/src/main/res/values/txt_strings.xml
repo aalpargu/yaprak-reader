@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_text_status_unsupported_txt">Bu TXT kaynağı metin indeksine alınamadı.</string>
+    <string name="library_text_txt_part">Metin parçası: %1$s</string>
+    <string name="library_text_txt_open">Metin parçasını aç</string>
+</resources>

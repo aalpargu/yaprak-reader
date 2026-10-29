@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="selected_ai_pdf_source">PDF sayfası %1$d · seçimin özgün kaynağı</string>
+    <string name="selected_ai_pdf_answer_help">Alıntılar bu gönderimin doğrulanmış PDF seçimiyle eşleşir. Kaynak, yukarıdaki gerçek PDF sayfasıdır; kesin alıntı satırı verilmez. Bu kontrol cevabın anlam bakımından doğru olduğunu garanti etmez. Cevap bu seçim oturumunda kalır.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_index_needed">Önce bu kitabın metin aramasını hazırlayabilirsin. Ardından kaynakları önizleyip sorunu ayrı Gönder eylemiyle ilet. İstersen kütüphane aramasından bütün kitapların indeksini de oluşturabilirsin.</string>
+    <string name="assistant_open_index">Kütüphane metin aramasını aç</string>
+    <string name="assistant_index_open_failed">Metin araması açılamadı. Yeniden dene.</string>
+    <string name="assistant_source_preparation_limit">Bu kitap için metin kaynağı hazırlama sınırına ulaşıldı. Eksik metin tam kaynak diye hazırlanmadı. Daha küçük bir kaynak veya kitap seçebilirsin.</string>
+    <string name="assistant_index_no_text">İndekste bu kitap için metin kaynağı bulunamadı. Görsellerdeki yazı bu kaynaklara otomatik OCR ile eklenmez.</string>
+</resources>

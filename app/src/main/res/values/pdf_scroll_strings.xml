@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pdf_scroll_enable">Dikey sürekli kaydır</string>
+    <string name="pdf_scroll_disable">Sayfa çevirme moduna dön</string>
+    <string name="pdf_scroll_help">Sayfaları yukarı veya aşağı kaydır. Uzun sayfayı okumak için Genişliğe sığdır seç. Kaydırma tercihin ve okuma noktan bu kitap için kaydedilir. Çift sayfa tercihin sayfa çevirme modunda yeniden uygulanır.</string>
+</resources>

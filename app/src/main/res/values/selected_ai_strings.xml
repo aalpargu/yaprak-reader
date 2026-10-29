@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="selected_ai_open">AI’a sor · seçili metin</string>
+    <string name="selected_ai_title">Seçili metinle AI</string>
+    <string name="selected_ai_scope">Yalnız bu seçimin özgün metni kullanılır. Kitabın diğer paragrafları, notlar ve okuma geçmişi eklenmez. Kaynakları hazırlamak metin göndermez.</string>
+    <string name="selected_ai_default_question">Bu seçili metni Türkçe açıkla.</string>
+    <string name="selected_ai_simple_question">Bu seçili metni daha basit Türkçeyle anlat.</string>
+    <string name="selected_ai_explain">Bu seçimi açıkla</string>
+    <string name="selected_ai_simplify">Daha basit anlat</string>
+    <string name="selected_ai_preparing">Özgün kaynak doğrulanıyor…</string>
+    <string name="selected_ai_prepare">Kaynakları yeniden hazırla ve önizle</string>
+    <string name="selected_ai_send_help">Gönder düğmesi, sorunu ve önizlediğin doğrulanmış parçaları seçtiğin Yaprak sunucusuna, sunucu da OpenAI’a iletir. Göndermeden önce kaynak yeniden denetlenir. Kitap dosyası ve seçim dışındaki metin gönderilmez.</string>
+    <string name="selected_ai_sending">Cevap bekleniyor…</string>
+    <string name="selected_ai_answer">AI açıklaması</string>
+    <string name="selected_ai_answer_help">Alıntılar bu gönderimin özgün kaynak parçalarıyla eşleşir. Bu kontrol, cevabın anlam bakımından doğru olduğunu garanti etmez. Kesin sayfa veya alıntı satırı verilmez; cevap bu seçim oturumunda kalır.</string>
+    <string name="selected_ai_close">AI panelini kapat · işlemi iptal et</string>
+    <string name="selected_ai_source_error">Seçimin özgün kaynağı doğrulanamadı veya değişti. Kaynakları yeniden hazırla; kitap değişmişse kapatıp yeniden aç. Metin gönderilmedi.</string>
+    <string name="selected_ai_limit_error">Seçim, kaynak veya cevap desteklenen boyut sınırını aştı. Daha kısa bir seçimle yeniden dene. Kısmi metin başarılı kaynak sayılmaz.</string>
+</resources>

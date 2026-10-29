@@ -1,0 +1,15 @@
+.gradle/
+.kotlin/
+.idea/
+**/build/
+# This Java package contains build logic source, not generated Gradle output.
+!buildSrc/src/main/java/com/yaprak/build/
+!buildSrc/src/main/java/com/yaprak/build/**
+!buildSrc/src/test/java/com/yaprak/build/
+!buildSrc/src/test/java/com/yaprak/build/**
+local.properties
+*.iml
+*.jks
+*.keystore
+captures/
+node_modules/

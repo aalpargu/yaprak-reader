@@ -1,0 +1,8 @@
+<resources>
+    <string name="docx_book_search_idle">Arama açık DOCX belgesinin desteklenen metninde çevrimdışı yapılır.</string>
+    <string name="library_text_docx_unsupported">Bu DOCX belgesi kütüphane metin araması için desteklenmiyor.</string>
+    <string name="docx_format_scope">DOCX metni yeniden düzenlenerek okunur; Word sayfa düzeni korunmaz. Başlıklar, temel biçimlendirme, listeler, basit tablolar, bağlantılar temel satır içi PNG/JPEG/WebP görseller ve metin dipnotları/sonnotları desteklenir. Yüzen/kırpılmış/efektli görseller, dipnot içindeki görsel/listeler, özel not işaretleri, denklem veya gömülü nesne içeren desteklenmeyen belgeler eklenmez.</string>
+    <string name="library_text_docx_part">Metin kaynağı: %1$s</string>
+    <string name="library_text_docx_open">Belgenin başını aç</string>
+    <string name="library_text_docx_no_text">Bu DOCX belgesinde aranabilir metin yok. Görsellerin içindeki yazılar bu aramaya dahil edilmez.</string>
+</resources>

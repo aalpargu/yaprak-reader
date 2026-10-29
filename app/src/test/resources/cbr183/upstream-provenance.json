@@ -1,0 +1,49 @@
+{
+  "upstreamVersion": "8.1.2",
+  "fixtures": [
+    {
+      "file": "rar4.rar",
+      "url": "https://raw.githubusercontent.com/junrar/junrar/v8.1.2/src/test/resources/com/github/junrar/rar4.rar",
+      "bytes": 123,
+      "sha256": "91e21f4126181790429f5e5ecdefedae6d6883ed6b4b396fc94d4ed6b32c065a"
+    },
+    {
+      "file": "rar5.rar",
+      "url": "https://raw.githubusercontent.com/junrar/junrar/v8.1.2/src/test/resources/com/github/junrar/rar5.rar",
+      "bytes": 130,
+      "sha256": "aaf1a7d974f302f181720280151053f15ef1119b13d2f7bf9fddf2163bbf1701"
+    },
+    {
+      "file": "solid/rar4-solid.rar",
+      "url": "https://raw.githubusercontent.com/junrar/junrar/v8.1.2/src/test/resources/com/github/junrar/solid/rar4-solid.rar",
+      "bytes": 464,
+      "sha256": "b158d4b0e3506f04fcaff18db9b369b573fd54f313062c7b8c622cb33b9c5da4"
+    },
+    {
+      "file": "solid/rar5-solid.rar",
+      "url": "https://raw.githubusercontent.com/junrar/junrar/v8.1.2/src/test/resources/com/github/junrar/solid/rar5-solid.rar",
+      "bytes": 423,
+      "sha256": "d004997e805cb7bb47bd73904aae113f81ee1d82d80bed9372c5dd64d1684754"
+    },
+    {
+      "file": "rar5unpack/m3-1gb-claim.rar",
+      "url": "https://raw.githubusercontent.com/junrar/junrar/v8.1.2/src/test/resources/com/github/junrar/rar5unpack/m3-1gb-claim.rar",
+      "bytes": 135,
+      "sha256": "f1d6dcea597ba55c646eb7f3b2a61883cd5d74f6de0493bbec04cf282dd07b36"
+    },
+    {
+      "file": "abnormal/bad-header-crc.rar",
+      "url": "https://raw.githubusercontent.com/junrar/junrar/v8.1.2/src/test/resources/com/github/junrar/abnormal/bad-header-crc.rar",
+      "bytes": 97,
+      "sha256": "b97de9f67f776075e569f4aad9024c707ea77ae1ee0955329f817fc18080c69f"
+    },
+    {
+      "file": "links/rar5-links.rar",
+      "url": "https://raw.githubusercontent.com/junrar/junrar/v8.1.2/src/test/resources/com/github/junrar/links/rar5-links.rar",
+      "bytes": 728,
+      "sha256": "c61ac78cf96221d26159acf531488a7e56515beda561297b573e36d1fb732b92"
+    }
+  ],
+  "slf4jSha256": "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832",
+  "slf4jMavenSha1Matched": true
+}

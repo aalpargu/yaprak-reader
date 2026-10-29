@@ -1,0 +1,8 @@
+<resources>
+    <string name="indexed_chapter_verifying">Kitap kaynağı doğrulanıyor…</string>
+    <string name="indexed_chapter_source_error">Arama sonucunun kaynağı doğrulanamadı. Kitaplık aramasını yeniden oluşturup sonucu tekrar açabilirsin.</string>
+    <string name="indexed_chapter_unsupported">Bu kitapta arama sonucunu açma desteklenmiyor.</string>
+    <string name="indexed_chapter_navigation_error">Arama sonucu açılamadı. Yeniden deneyebilirsin.</string>
+    <string name="indexed_chapter_interrupted">Arama sonucunu açma kesildi. Yeniden deneyebilirsin.</string>
+    <string name="indexed_chapter_retry">Arama sonucunu açmayı yeniden dene</string>
+</resources>

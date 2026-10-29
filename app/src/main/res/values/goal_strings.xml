@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="daily_goal_title">Günlük süre hedefi</string>
+    <string name="daily_goal_help">Hedef isteğe bağlıdır. Yalnız bugüne kaydedilmiş okuma süresiyle karşılaştırılır. Gün serisi veya geçmiş başarı kaydı tutulmaz.</string>
+    <string name="daily_goal_device">Hedef bu cihazda saklanır; kitaplık yedeğine dahil değildir.</string>
+    <string name="daily_goal_off">Kapalı</string>
+    <string name="daily_goal_saved">Hedef: %1$d dakika</string>
+    <string name="daily_goal_progress">Bugünkü ilerleme: %1$d%%</string>
+    <string name="daily_goal_today">Kaydedilmiş bugünkü süre: %1$s</string>
+    <string name="daily_goal_remaining">Kalan süre: %1$s</string>
+    <string name="daily_goal_achieved">Bugünkü hedef tamamlandı.</string>
+    <string name="daily_goal_duration_unavailable">Bugünkü süre yüklenmeden hedef ilerlemesi gösterilemez.</string>
+    <string name="daily_goal_edit">Hedefi düzenle</string>
+    <string name="daily_goal_loading">Kayıtlı hedef okunuyor…</string>
+    <string name="daily_goal_load_failed">Kayıtlı hedef okunamadı. Yeniden deneyebilirsin.</string>
+    <string name="daily_goal_stored_invalid">Kayıtlı hedef değeri geçerli değil. Yeniden deneyebilirsin.</string>
+    <string name="daily_goal_retry">Hedefi yeniden oku</string>
+    <string name="daily_goal_enabled">Günlük hedefi kullan</string>
+    <string name="daily_goal_minutes_label">Günlük dakika</string>
+    <string name="daily_goal_range">1–1000 arasında tam dakika gir.</string>
+    <string name="daily_goal_invalid">Geçerli bir tam dakika gir (1–1000).</string>
+    <string name="daily_goal_saving">Hedef kaydediliyor…</string>
+    <string name="daily_goal_save_failed">Hedef kaydedilemedi. Taslağı kontrol edip yeniden kaydedebilirsin.</string>
+    <string name="daily_goal_previous_save_failed">Son hedef değişikliği kaydedilemedi.</string>
+    <string name="daily_goal_save">Kaydet</string>
+    <string name="daily_goal_cancel">Vazgeç</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_book_assistant">Kitaba soru sor</string>
+    <string name="reader_book_assistant_open_failed">Kitap asistanı açılamadı. Yeniden dene.</string>
+</resources>

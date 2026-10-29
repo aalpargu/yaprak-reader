@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="review_title">Kelime tekrarları ve geçmiş</string>
+    <string name="review_help">Anlamı göster, sonra ne kadar kolay hatırladığını seç. Yalnız puanladığın kart kaydedilir. Basit tekrar takvimi 1, 3, 7, 14, 30, 60 ve 120 gün basamaklarını kullanır; Anki/FSRS algoritması değildir. Düzenlenen kelime yeni içerik olarak başlar. Kelimeyi veya kitabını silmek, ilgili tekrar geçmişini de siler; tam yedek geçmişi korur.</string>
+    <string name="review_back">Kelimelere dön</string>
+    <string name="review_loading">Tekrarlar yükleniyor…</string>
+    <string name="review_counts">Tekrar zamanı gelen: %1$d · Yeni içerik: %2$d · Toplam kelime: %3$d</string>
+    <string name="review_start">Zamanı gelen kelimeleri çalış</string>
+    <string name="review_stop">Kartları kapat ve geçmişi gör</string>
+    <string name="review_reveal">Türkçe anlamı göster</string>
+    <string name="review_again">Tekrar · 10 dakika sonra</string>
+    <string name="review_hard">Zor · bir alt basamak</string>
+    <string name="review_good">Hatırladım · bir üst basamak</string>
+    <string name="review_easy">Kolay · iki üst basamak</string>
+    <string name="review_new">Yeni veya düzenlenmiş içerik</string>
+    <string name="review_due">Tekrar zamanı geldi</string>
+    <string name="review_scope">Bu oturumda gösterilebilen: %1$d / %2$d. En fazla 200 kart tutulur; her puanlamadan sonra kuyruk tüm kelimelerden yenilenir. Takvim cihaz saatini ve puanlama anındaki saat dilimini kullanır; bildirim göndermez.</string>
+    <string name="review_done">Şu an tekrar zamanı gelen kart yok.</string>
+    <string name="review_saved">Kaydedildi. Sonraki tekrar: %1$s</string>
+    <string name="review_history">Son tekrarlar: %1$d / %2$d</string>
+    <string name="review_no_history">Henüz puanlanmış kart yok. Kart açmak veya anlamı göstermek geçmiş oluşturmaz.</string>
+    <string name="review_history_date">Puanlama: %1$s\nSonraki tekrar: %2$s</string>
+    <string name="review_previous_content">Bu kayıt, kelimenin önceki içeriğine ait.</string>
+    <string name="review_stale">Kart veya tekrar takvimi değişti. Listeyi yenileyip güncel kartı çalış.</string>
+    <string name="review_clock">Cihaz saati önceki puanlamadan geri veya desteklenen aralığın dışında (2000–2099). Saati düzeltip listeyi yenile.</string>
+    <string name="review_limit">Tekrar geçmişi sınırına ulaşıldı (100.000 kayıt). Geçmiş otomatik silinmedi. Tam yedek alabilir veya artık tutmak istemediğin kelimeleri silebilirsin.</string>
+    <string name="review_failed">Tekrar verisi okunamadı veya kayıt doğrulanamadı. Yeniden dene.</string>
+    <string name="review_retry">Aynı puanlamayı yeniden dene</string>
+    <string name="review_reload">Tekrar listesini yenile</string>
+</resources>

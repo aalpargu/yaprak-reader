@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pdf_spread_double">Çift sayfa · geniş ekranda</string>
+    <string name="pdf_spread_single">Tek sayfaya dön</string>
+    <string name="pdf_spread_help">Okuma alanı en az 600 dp genişliğindeyken seçtiğin sayfa ve sonraki sayfa yan yana görünür. Dar ekranda tek sayfa gösterilir. İleri / geri düğmeleri geniş ekranda iki sayfa ilerler. Yer imi, not ve kaldığın yer seçtiğin ilk sayfaya bağlıdır; ikinci sayfa okunmuş sayılmaz.</string>
+</resources>

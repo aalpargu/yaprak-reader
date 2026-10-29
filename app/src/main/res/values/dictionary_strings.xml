@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dictionary_action">İngilizce sözlük · çevrimiçi</string>
+    <string name="dictionary_transfer_help">Bu düğmeyle yalnız seçtiğin tek kelime dictionaryapi.dev hizmetine gönderilir. Tanımlar İngilizcedir.</string>
+    <string name="dictionary_loading">Kelimenin anlamı yükleniyor…</string>
+    <string name="dictionary_retry">Sözlüğü yeniden dene</string>
+    <string name="dictionary_invalid_word">Sözlük için tek kelime seç. Boşluk içeren cümleler veya 100 karakterden uzun seçimler desteklenmiyor.</string>
+    <string name="dictionary_not_found">Bu kelime için sözlük kaydı bulunamadı.</string>
+    <string name="dictionary_network">Sözlük hizmetine bağlantı kurulamadı. İnternet bağlantını denetleyip yeniden deneyebilirsin.</string>
+    <string name="dictionary_timeout">Sözlük hizmeti zamanında yanıt vermedi. Yeniden deneyebilirsin.</string>
+    <string name="dictionary_provider_error">Sözlük yanıtı alınamadı veya doğrulanamadı. Yeniden deneyebilirsin.</string>
+    <string name="dictionary_too_large">Sözlük yanıtı desteklenen sınırı aşıyor. Eksik tanım gösterilmedi.</string>
+    <string name="dictionary_busy">Sözlük hizmeti şu anda meşgul. Biraz sonra yeniden deneyebilirsin.</string>
+    <string name="dictionary_provider">Free Dictionary API · dictionaryapi.dev</string>
+    <string name="dictionary_example">Örnek: %1$s</string>
+    <string name="dictionary_license">Lisans: %1$s</string>
+    <string name="dictionary_source">Kaynak: %1$s</string>
+</resources>

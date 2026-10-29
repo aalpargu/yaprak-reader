@@ -1,0 +1,9 @@
+{
+  "producer": "python-docx",
+  "version": "1.2.0",
+  "scope": "Owned future image-converter fixture; not current supported app input",
+  "bytes": 37124,
+  "sha256": "be1633fa0691a58af756242050ac9edf1c779de49b96a79d44c1de4c2691e1c0",
+  "pngBytes": 76,
+  "pngSha256": "c2743629a94975d6d535ae65414fff8347b3558a586947148c85f7c462e784e0"
+}

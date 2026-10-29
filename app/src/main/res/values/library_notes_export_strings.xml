@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_notes_export_action">Notları dışa aktar</string>
+    <string name="library_notes_export_title">Kütüphane notlarını aktar</string>
+    <string name="library_notes_export_help">Aramaya uyan kitap notları ve bağlı EPUB/PDF notları, kitap bilgisi ve varsa kaynak alıntıyla tek dosyada toplanır. Dosya yazılırken güncel kayıtlar alınır; yalnız ekrandaki ilk 200 notla sınırlı değildir. Kelimeler, notsuz vurgular ve yer imleri bu aktarıma dahil değildir. En fazla 1000 not; boyut sınırı aşılırsa kısmi dosya üretilmez.</string>
+    <string name="library_notes_export_all">Kapsam: Tüm kütüphane notları</string>
+    <string name="library_notes_export_query">Kapsam: “%1$s” araması</string>
+    <string name="library_notes_export_count">Aramaya uyan not: %1$d</string>
+    <string name="library_notes_export_text">TXT · notlar ve kaynakları</string>
+    <string name="library_notes_export_markdown">Markdown · notlar ve kaynakları</string>
+    <string name="library_notes_export_stale">Notlar veya arama kapsamı değişti. Kapatıp yeniden seç.</string>
+    <string name="library_notes_export_limit">Bu aramada 1000 not sınırı aşıldı. Aramayı daraltıp yeniden aktar.</string>
+    <string name="library_notes_export_busy">Dosya seçimi veya not aktarımı sürüyor.</string>
+    <string name="library_notes_export_success">Aktarılan not: %1$d</string>
+    <string name="library_notes_export_result">Not aktarımı sonucu</string>
+    <string name="library_notes_export_close">Kapat</string>
+</resources>

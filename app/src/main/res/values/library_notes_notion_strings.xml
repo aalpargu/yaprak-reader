@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_notes_export_notion_csv">Notion için CSV · notlar ve kaynakları</string>
+    <string name="library_notes_export_notion_help">Aramana uyan her not bir satır olur; bağlı not kaynak alıntısıyla aynı satırda kalır. Dosyayı Notion’un masaüstü veya web sürümünde Ayarlar → İçe aktar → CSV ile aç. Metin sütunlarını Metin olarak eşle. Tekrar içe aktarma yeni satırlar ekler. En fazla 5 MB; sınır aşılırsa kısmi aktarım yapılmaz.</string>
+</resources>

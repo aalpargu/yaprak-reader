@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pdf_bookmark_point_label">Sayfa %1$d · okuma noktası</string>
+</resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_words_title">Kayıtlı kelimeler · tüm kitaplık</string>
+    <string name="library_words_help">Kitaplarında kaydettiğin İngilizce kelimeler ve kendi Türkçe karşılıkların. Arama kelime, anlam, kitap adı ve yazarı birlikte kapsar. Kitap içindeki Kelimeler ekranından kayıtları düzenleyebilirsin.</string>
+    <string name="library_words_search">Kelime, anlam, kitap veya yazar ara</string>
+    <string name="library_words_loading">Kelime kayıtları yükleniyor…</string>
+    <string name="library_words_failed">Kelime kayıtları yüklenemedi. Yeniden deneyebilirsin.</string>
+    <string name="library_words_count">%1$d kayıt gösteriliyor · toplam %2$d eşleşme. En yeni 200 kayıt görüntülenir.</string>
+    <string name="library_words_start">Gösterilen kelimelerle flashcard pratiği</string>
+    <string name="library_words_practice_scope">Pratik yalnız bu aramada gösterilen kayıtları kullanır. Cevap kendi kaydettiğin Türkçe karşılıktır; öğrenme puanı veya aralıklı tekrar takvimi tutulmaz.</string>
+    <string name="library_words_card_count">Kart %1$d / %2$d</string>
+    <string name="library_words_reveal">Türkçe anlamı göster</string>
+    <string name="library_words_previous">Önceki kart</string>
+    <string name="library_words_next">Sonraki kart</string>
+    <string name="library_words_shuffle">Kartları karıştır</string>
+    <string name="library_words_stop">Kelime listesine dön</string>
+    <string name="library_words_open">Kelimenin kitabını aç</string>
+    <string name="library_words_back">Kitaplığa dön</string>
+    <string name="library_words_reload">Kayıtları yeniden yükle</string>
+    <string name="library_words_changed">Kelime veya kitap bilgisi değişmiş. Kayıtları yeniden yükle.</string>
+    <string name="library_words_open_failed">Kitap açılamadı. Yeniden deneyebilirsin.</string>
+    <string name="library_words_empty">Kitaplarında henüz kelime kaydı yok.</string>
+    <string name="library_words_no_matches">Bu aramaya uyan kelime kaydı yok.</string>
+</resources>

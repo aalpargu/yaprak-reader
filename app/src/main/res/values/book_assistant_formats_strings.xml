@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_pdf_scope">Bu PDF’nin tüm metin sayfalarında anahtar kelime araması yapılır; okunmamış sayfalar da çıkabilir. Görseller OCR ile taranmaz. Bu, anlam temelli arama veya “şu ana kadar” kapsamı değildir. Önce ilgili az sayıda kelimeyle kaynakları hazırla.</string>
+    <string name="assistant_txt_scope">Bu TXT’nin tüm metin parçalarında anahtar kelime araması yapılır; okunmamış parçalar da çıkabilir. Metin parçaları kitabın bölümleri değildir. Bu, anlam temelli arama veya “şu ana kadar” kapsamı değildir. Önce ilgili az sayıda kelimeyle kaynakları hazırla.</string>
+    <string name="assistant_pdf_source">PDF sayfası %1$d</string>
+    <string name="assistant_pdf_open">Alıntının PDF sayfasını aç</string>
+    <string name="assistant_txt_open">Alıntının metin parçasını aç · parça başlangıcı</string>
+    <string name="assistant_unknown_source">Kaynak konumu bilinmiyor</string>
+</resources>

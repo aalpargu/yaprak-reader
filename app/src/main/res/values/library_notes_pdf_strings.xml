@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_notes_export_pdf">PDF · notlar ve kaynakları</string>
+    <string name="library_notes_export_pdf_help">PDF, notları ve kaynaklarını okunabilir A4 sayfalara yerleştirir. En fazla 200 sayfa; sınır aşılırsa notların bir kısmı atlanmaz. Özgün kitap dosyaları eklenmez.</string>
+</resources>

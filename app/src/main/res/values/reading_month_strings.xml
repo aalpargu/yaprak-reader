@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reading_calendar_month_title">Ay takvimi · kayıtlı süreler</string>
+    <string name="reading_calendar_month_help">Renkli günlerde kaydedilmiş okuma süresi vardır. Bugün çerçeveyle gösterilir. Kayıt olmayan gün, hiç okumadığın anlamına gelmez. Geçmiş kayıtların tarih etiketleri korunur; takvim bir gün serisi veya başarı puanı üretmez.</string>
+    <string name="reading_calendar_day_description">%1$s · %2$s</string>
+    <string name="reading_calendar_today_description">Bugün · %1$s</string>
+    <string name="reading_calendar_previous">Önceki ay</string>
+    <string name="reading_calendar_next">Sonraki ay</string>
+    <string-array name="reading_calendar_weekdays_short"><item>Pt</item><item>Sa</item><item>Ça</item><item>Pe</item><item>Cu</item><item>Ct</item><item>Pa</item></string-array>
+    <string-array name="reading_calendar_weekdays"><item>Pazartesi</item><item>Salı</item><item>Çarşamba</item><item>Perşembe</item><item>Cuma</item><item>Cumartesi</item><item>Pazar</item></string-array>
+</resources>

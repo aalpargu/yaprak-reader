@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="selected_tools_web">Web’de ara</string>
+    <string name="selected_tools_transfer_help">Bu işlemler yalnız seçili metni açılan arama veya metin uygulamasına gönderir.</string>
+    <string name="selected_tools_title">Cihazdaki metin araçları</string>
+    <string name="selected_tools_loading">Uyumlu metin araçları aranıyor…</string>
+    <string name="selected_tools_empty">Uyumlu metin aracı bulunamadı. Sözlük veya çeviri uygulamanın Android metin işlemeyi desteklemesi gerekir.</string>
+    <string name="selected_tools_retry">Metin araçlarını tekrar bul</string>
+    <string name="selected_tools_invalid_text">Bu seçim aktarılamadı. En fazla 5000 karakterlik geçerli metin seç.</string>
+    <string name="selected_tools_unavailable">Bu işlemi açacak uygulama bulunamadı. Seçimini yeniden deneyebilirsin.</string>
+    <string name="selected_tools_denied">Uygulama bu metin işlemini açmaya izin vermiyor.</string>
+    <string name="selected_tools_limit">Uyumlu metin araçları liste sınırını aşıyor. En fazla 32 araç desteklenir.</string>
+    <string name="selected_tools_failed">Metin işlemi tamamlanamadı. Seçimin korunuyor; yeniden deneyebilirsin.</string>
+</resources>

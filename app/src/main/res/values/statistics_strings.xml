@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reading_duration_save_failed">Okuma süresi kaydedilemedi. Ölçüm durduruldu; bekleyen kayıtları yeniden deneyebilirsin.</string>
+    <string name="reading_duration_retry">Süreyi tekrar kaydet</string>
+    <string name="reading_duration_leave_unsaved">Bekleyen süreyi kaydetmeden çık</string>
+    <string name="reading_statistics_title">Okuma süreleri</string>
+    <string name="reading_statistics_help">Ön planda, belge görünür ve araçlar kapalıyken ölçülen süre gösterilir. Dikkat veya anlama ölçülmez. Yalnız başarıyla kaydedilmiş süreler vardır; eski okuma konumlarından süre çıkarılmaz.</string>
+    <string name="reading_statistics_scope">Toplam mevcut kitaplığındır. Kitap silinince ona ait süreler de kaldırılır. Ekran dönüşü veya uygulama kapanışında son kayıt sonrasındaki süre kaybolabilir.</string>
+    <string name="reading_statistics_today">Bugün · %1$s</string>
+    <string name="reading_statistics_week">Son 7 gün · bugün dahil</string>
+    <string name="reading_statistics_average">Günlük kaydedilmiş süre ortalaması · son 7 gün</string>
+    <string name="reading_statistics_average_help">Son 7 günde kaydedilmiş süre, 7 takvim gününe bölünür. Kayıt olmayan günler hesapta sıfır kabul edilir; geçmiş okuma süresi tahmin edilmez.</string>
+    <string name="reading_statistics_days">Süre kaydedilen gün · son 7 gün: %1$d / 7</string>
+    <string name="reading_statistics_completed">Tamamlandı olarak işaretlenen kitap: %1$d</string>
+    <string name="reading_statistics_completed_help">Mevcut kitaplığındaki Okuma durumu → Tamamlandı kayıtları sayılır. Süre veya yüzde üzerinden bitirme tahmini yapılmaz; bitirme tarihi geçmişi değildir.</string>
+    <string name="reading_statistics_period">%1$s – %2$s</string>
+    <string name="reading_statistics_total">Mevcut kitaplık toplamı</string>
+    <string name="reading_statistics_zone">Geçerli saat dilimi: %1$s</string>
+    <string name="reading_statistics_dates_help">Günler ölçüm anındaki yerel tarihle kaydedilir. Saat dilimi değişince geçmiş kayıtların tarihleri değiştirilmez.</string>
+    <string name="reading_statistics_loading">Kaydedilmiş süreler okunuyor…</string>
+    <string name="reading_statistics_failed">Kaydedilmiş süreler okunamadı. Yeniden deneyebilirsin.</string>
+    <string name="reading_statistics_recovery">Kitaplık kurtarma işlemi tamamlanmadan süreler gösterilemez.</string>
+    <string name="reading_statistics_invalid">Kaydedilmiş süre verisi geçerli değil. Yeniden deneyebilirsin.</string>
+    <string name="reading_statistics_limit">Okuma süresi kayıt sınırına ulaşıldı.</string>
+    <string name="reading_statistics_stale">Kitap içeriği değişmiş. Güncel süreleri yeniden yükleyebilirsin.</string>
+    <string name="reading_statistics_retry">Yeniden dene</string>
+    <string name="reading_statistics_empty">Henüz kaydedilmiş okuma süresi yok. Ölçüm bu özellikten itibaren başlar.</string>
+    <string name="reading_statistics_books">Kitap bazında kaydedilmiş süre</string>
+    <string name="reading_statistics_calendar_show">Okuma takvimini göster</string>
+    <string name="reading_statistics_calendar_hide">Takvimi kapat</string>
+    <string name="reading_statistics_calendar_title">Son 28 gün, gün gün</string>
+    <string name="reading_statistics_day_empty">Kayıtlı süre yok</string>
+    <string name="reading_statistics_under_second">1 sn’den az</string>
+    <string name="reading_statistics_seconds">%1$d sn</string>
+    <string name="reading_statistics_minutes">%1$d dk %2$d sn</string>
+    <string name="reading_statistics_hours">%1$d sa %2$d dk %3$d sn</string>
+    <string name="reading_statistics_back">Kitaplığa dön</string>
+    <string name="reading_statistics_startup_loading">Kitaplık hazırlanıyor…</string>
+    <string name="reading_statistics_startup_failed">Kitaplık kurtarılamadı. Okuma süreleri açılamadı.</string>
+</resources>

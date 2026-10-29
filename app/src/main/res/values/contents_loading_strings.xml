@@ -1,0 +1,7 @@
+<resources>
+    <string name="contents_loading">İçindekiler hazırlanıyor…</string>
+    <string name="contents_failed">İçindekiler doğrulanamadı. Kitabı okumaya devam edebilir veya yeniden deneyebilirsin.</string>
+    <string name="contents_limit">İçindekiler bu belgenin işleme sınırını aşıyor. PDF için en fazla 64 MiB dosya, 10.000 sayfa ve 64 başlık seviyesi desteklenir.</string>
+    <string name="contents_unsupported">Bu belgenin içindekileri desteklenmiyor. Kitabı okumaya devam edebilirsin.</string>
+    <string name="contents_retry">Yeniden dene</string>
+</resources>

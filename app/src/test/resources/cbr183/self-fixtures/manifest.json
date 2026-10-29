@@ -1,0 +1,33 @@
+{
+  "origin": "Self-authored stored RAR4/RAR5 wire fixtures with own2x2 RGB PNGs; no compression algorithm implemented",
+  "files": {
+    "01.png": {
+      "bytes": 73,
+      "sha256": "150e801e83f0840c9f7be270142fa047baf1a0bbd75d529b8bfe7c192f4e729c"
+    },
+    "10.png": {
+      "bytes": 73,
+      "sha256": "f6d434a7b6ed90f69bdb28dbe181894760bea1bf862f522ffcaa2233d7e4e708"
+    },
+    "corrupt-second-payload.cbr": {
+      "bytes": 230,
+      "sha256": "56f3151664c37c45ae9865be3ca64de2e366d1b1e6a2a18d23ffa259242ac3cf"
+    },
+    "duplicate-fold.cbr": {
+      "bytes": 230,
+      "sha256": "0f77c0ccc351ba91a2ce27aae1a272c68b746d670999f1458f1578a9cf83c089"
+    },
+    "stored-rar4.cbr": {
+      "bytes": 261,
+      "sha256": "3e51382ced66d6b5e2aa2227010a151d3f4a8362a57059f1d0bdd4b60327a8d5"
+    },
+    "stored-rar5.cbr": {
+      "bytes": 230,
+      "sha256": "e52fe752b256fc7b0555257a2ac67449f38ac65af363e56a2e3c0f1dd90c76cf"
+    },
+    "traversal.cbr": {
+      "bytes": 124,
+      "sha256": "c11fbf6f691bab35344820c0b49eb31d34958a50d60336a139dae9bef8edfb23"
+    }
+  }
+}

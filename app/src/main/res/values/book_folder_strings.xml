@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="book_folder_title">Kayıtlı kitap klasörü</string>
+    <string name="book_folder_remember">Klasörü hatırla</string>
+    <string name="book_folder_remember_help">Seçtiğin klasörü sonraki açılışlarda yeniden seçmeden tarayabilirsin. Kaydetme yalnız bu cihazda geçerlidir; kitap eklemez.</string>
+    <string name="book_folder_selected">Klasör: %1$s</string>
+    <string name="book_folder_name_unknown">Seçili kitap klasörü</string>
+    <string name="book_folder_scan">Kayıtlı klasörü tara</string>
+    <string name="book_folder_forget">Klasörü unut</string>
+    <string name="book_folder_help">Tarama yalnız bu klasördeki adayları gösterir. Kitapları seçip ekleyebilirsin. Klasörü unutmak eklenmiş kitapları silmez.</string>
+    <string name="book_folder_empty">Kayıtlı klasör yok. Klasörde kitap bul taramasının sonuçlarından Klasörü hatırla seçebilirsin.</string>
+    <string name="book_folder_loading">Kayıtlı klasör yükleniyor…</string>
+    <string name="book_folder_load_failed">Kayıtlı klasör bilgisi okunamadı. Yeniden yükle.</string>
+    <string name="book_folder_retry">Yeniden yükle</string>
+    <string name="book_folder_checking">Kayıtlı klasör erişimi doğrulanıyor…</string>
+    <string name="book_folder_saving">Klasör tercihi kaydediliyor…</string>
+    <string name="book_folder_cancel">Vazgeç</string>
+    <string name="book_folder_saved">Klasör bu cihazda hatırlanacak.</string>
+    <string name="book_folder_forgotten">Klasör unutuldu. Eklenmiş kitaplar korunur.</string>
+    <string name="book_folder_cleanup">Tercih kaydedildi; klasör izni temizliği için yeniden yükle.</string>
+    <string name="book_folder_failed">Klasör işlemi tamamlanamadı. Yeniden deneyebilirsin.</string>
+    <string name="book_folder_changed">Klasör tercihi değişmiş. Güncel tercihi yeniden yükle.</string>
+    <string name="book_folder_access">Klasöre kalıcı erişim yok. Klasörde kitap bul ile yeniden seç.</string>
+    <string name="book_folder_auto_turn_on">Açılışta kontrolü aç</string>
+    <string name="book_folder_auto_turn_off">Açılışta kontrolü kapat</string>
+    <string name="book_folder_auto_on">Uygulama açılışında kontrol: açık</string>
+    <string name="book_folder_auto_off">Uygulama açılışında kontrol: kapalı</string>
+    <string name="book_folder_auto_help">Açıkken uygulamanın sonraki açılışında bu klasör kontrol edilir; eklemek istediğin kitapları sen seçersin. Arka planda izleme yoktur.</string>
+    <string name="book_folder_auto_enabled">Açılış kontrolü kaydedildi. Sonraki açılışta uygulanacak.</string>
+    <string name="book_folder_auto_disabled">Açılış kontrolü kapatıldı. Elle tarayabilirsin.</string>
+</resources>

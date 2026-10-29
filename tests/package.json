@@ -1,0 +1,6 @@
+{
+  "name": "yaprak-dom-tests",
+  "private": true,
+  "scripts": { "test": "node visible-text.spec.cjs" },
+  "devDependencies": { "playwright": "1.62.1" }
+}

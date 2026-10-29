@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_mode_prefix">Kitabın başından seçtiğim sınıra kadar</string>
+    <string name="assistant_prefix_scope">Bir içindekiler kaydını açıkça seç. Kaynaklar kitabın başından bu kaydın kapsadığı metnin sonuna kadar hazırlanır; önceki giriş metni de dahildir. Okuma yüzdesi kullanılmaz. Bu seçim okuduğun kısmı veya hikâyedeki olayların zamanını garanti etmez. Örneğin bu metne göre bir karakterin yaptıklarını sorabilirsin.</string>
+    <string name="assistant_prefix_load">Bitiş sınırlarını yükle</string>
+    <string name="assistant_prefix_choose_help">Başlangıçtan bu kaydın kapsadığı metnin sonuna kadar. Toplam kapsam kaynak önizlemesinde kontrol edilir.</string>
+    <string name="assistant_prefix_choose">Bu kaydın sonuna kadar seç</string>
+    <string name="assistant_prefix_selected">Bitiş sınırı seçildi</string>
+    <string name="assistant_prefix_chosen">Başlangıçtan şu kaydın sonuna kadar: %1$s</string>
+    <!-- Turkish nouns following a number keep the singular form for both quantity classes. -->
+    <plurals name="assistant_prefix_source_count">
+        <item quantity="one">Seçilen başlangıç kapsamının tüm %1$d metin parçası hazırlandı; toplam %2$d. Sonraki metin gönderilecek kaynaklara dahil değildir.</item>
+        <item quantity="other">Seçilen başlangıç kapsamının tüm %1$d metin parçası hazırlandı; toplam %2$d. Sonraki metin gönderilecek kaynaklara dahil değildir.</item>
+    </plurals>
+    <string name="assistant_prefix_summary">Seçilen başlangıç kapsamını özetleme taslağı</string>
+    <string name="assistant_prefix_send_help">Yalnız önizlediğin başlangıç kapsamının metni ve sorun yapılandırdığın sunucuya gönderilir. Göndermeden önce özgün kitap ve seçtiğin gerçek içindekiler sınırı yeniden doğrulanır. Sonraki metin, kişisel notlar ve okuma geçmişi gönderilmez.</string>
+    <string name="assistant_prefix_failure">Seçilen başlangıç kapsamı hazırlanamadı. Tam kapsam sınırı aşarsa eksik bir başlangıç parçası tam kaynak diye kullanılmaz. Daha erken bir sınır seçebilirsin. Genel anahtar kelime modu bütün kitapta arar; seçtiğin bitiş sınırıyla daraltılmaz. Bu moda geçiş ayrı seçimindir, kapsam kendiliğinden değiştirilmez.</string>
+</resources>

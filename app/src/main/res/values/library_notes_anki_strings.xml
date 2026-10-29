@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_notes_export_anki">Anki için TXT · çalışma kartları</string>
+    <string name="library_notes_export_anki_help">Aramana uyan her not bir kart satırı olur. Bağlı notlarda kaynak alıntı ön yüzde, notun ve kitap bilgileri arka yüzde kalır. TXT dosyasını Anki’de içe aktar; ilk ve ikinci sütunu Ön ve Arka alanlarına eşle. Aynı Ön alanına sahip kartlar güncellenebilir: içe aktarma ekranında güncelleme veya yeni not ekleme seçimini kontrol et. En fazla 5 MB; sınır aşılırsa kısmi aktarım yapılmaz.</string>
+</resources>
