@@ -36,3 +36,19 @@ interface ReadingDurationReceiptDao {
     @Insert
     suspend fun insert(receipt: ReadingDurationReceiptEntity)
 }
+
+/**
+ * Distinct pages shown during one duration receipt (same id). PDF/CBZ/CBR: page index;
+ * reflowable: Readium position. Re-recording a receipt advances by MAX, never adds.
+ */
+@Entity(tableName = "reading_page_receipts", foreignKeys = [ForeignKey(
+    entity = BookEntity::class, parentColumns = ["id"], childColumns = ["bookId"],
+    onDelete = ForeignKey.CASCADE,
+)], indices = [Index(value = ["bookId", "contentSha256", "localDate"])])
+data class ReadingPageReceiptEntity(
+    @PrimaryKey val id: String,
+    val bookId: String,
+    val contentSha256: String,
+    val localDate: String,
+    val pages: Int,
+)

@@ -90,7 +90,7 @@ class TxtBackupTest {
         try {
             val book = seed(source); assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             val entries = entries(docs.bytes!!); val manifest = JSONObject(entries.getValue("manifest.json").toString(Charsets.UTF_8))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertEquals(setOf("manifest.json", "records.json", "books/" + book.storageName), entries.keys)
             assertArrayEquals(original, entries.getValue("books/" + book.storageName))
             assertEquals(BackupResult.Restored(1), target.backup(docs).restore("content://backup"))
@@ -135,7 +135,7 @@ class TxtBackupTest {
             val book = seed(source); source.backup(docs).create("content://backup")
             docs.bytes = rewrite(docs.bytes!!) { entries ->
                 val records = JSONObject(entries.getValue("records.json").toString(Charsets.UTF_8))
-                records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
+                records.getJSONObject("tables").remove("pdf_ink_strokes"); records.getJSONObject("tables").remove("reading_page_receipts"); records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
                 records.getJSONObject("tables").remove("book_cbz_view_preferences")
                 records.getJSONObject("tables").remove("book_epub_reading_mode_overrides")
                 records.getJSONObject("tables").remove("book_epub_text_alignment_overrides")

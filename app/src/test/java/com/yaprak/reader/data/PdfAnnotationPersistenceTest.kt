@@ -197,11 +197,11 @@ class PdfAnnotationPersistenceTest {
                 }
                 sql.version = 18
             }
-            val database = Room.databaseBuilder(context, LibraryDatabase::class.java, name).addMigrations(LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build()
+            val database = Room.databaseBuilder(context, LibraryDatabase::class.java, name).addMigrations(LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build()
             try {
                 snapshots.forEach { (table, before) -> assertEquals(table, before.second, rows(database.openHelper.writableDatabase.query("SELECT ${before.first} FROM $table"))) }
                 assertEquals(0L, count(database)); repo(database).create(book.id, book.sha256, text, anchor, PdfHighlightColor.PINK, "new")
-                assertEquals(1L, count(database)); assertEquals(26, database.openHelper.writableDatabase.version)
+                assertEquals(1L, count(database)); assertEquals(28, database.openHelper.writableDatabase.version)
             } finally { database.close() }
         } finally { context.deleteDatabase(name) }
     }

@@ -41,6 +41,7 @@ internal fun BookAssistantScreen(state: BookAssistantState,
     onChapter: (BookSourceChapter, Long) -> Unit = { _, _ -> },
     onOpenIndex: ((Long) -> Unit)? = null,
     onPrepareIndex: ((Long) -> Unit)? = null,
+    onAsk: ((Long) -> Unit)? = null,
 ) {
     val prefixMode = state.sourceMode in setOf(BookAssistantSourceMode.PREFIX, BookAssistantSourceMode.PREFIX_KEYWORDS)
     val live by rememberUpdatedState(state)
@@ -49,19 +50,40 @@ internal fun BookAssistantScreen(state: BookAssistantState,
     val revision = state.revision
     fun current() = lease.active && live.active && live.revision == revision
     var connectionExpanded by rememberSaveable { mutableStateOf(false) }
-    Scaffold(bottomBar = {
-        Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 16.dp)) {
-            if (state.busy) AssistantActionButton(revision, "assistant-cancel", R.string.assistant_cancel, state.active) {
+    // The one-step question is the default; source modes, keywords and manual send live under "Gelişmiş".
+    var advanced by rememberSaveable { mutableStateOf(onAsk == null) }
+    val simple = onAsk != null && !advanced && state.sourceMode == BookAssistantSourceMode.KEYWORDS
+    Scaffold(topBar = {
+        com.yaprak.reader.ui.theme.YaprakTopBar(stringResource(R.string.assistant_title), stringResource(R.string.assistant_back),
+            { if (current()) onBack() }, "assistant-back")
+    }, bottomBar = {
+        if (state.busy) Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 16.dp)) {
+            AssistantActionButton(revision, "assistant-cancel", R.string.assistant_cancel, state.active) {
                 if (current()) onCancel(revision)
             }
-            AssistantActionButton(revision, "assistant-back", R.string.assistant_back, state.active) { if (current()) onBack() }
         }
     }) { insets ->
         LazyColumn(Modifier.fillMaxSize().padding(insets).testTag("assistant-list"),
             contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item("title") { Text(stringResource(R.string.assistant_title), style = MaterialTheme.typography.headlineMedium) }
             item("book") { state.book?.let { Text(it.title, style = MaterialTheme.typography.titleLarge) } }
-            if (state.book != null && state.indexState == com.yaprak.reader.domain.search.LibraryTextBookState.NOT_INDEXED) item("index-needed") {
+            if (onAsk != null && state.sourceMode == BookAssistantSourceMode.KEYWORDS) item("ask") {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AssistantField(state.question, R.string.assistant_question, "assistant-ask-question", state.active && !state.busy,
+                        onValue = { if (current()) onQuestion(it) })
+                    Button({ if (current() && !live.busy && live.question.isNotBlank()) onAsk(revision) },
+                        Modifier.fillMaxWidth().testTag("assistant-ask"),
+                        enabled = state.active && !state.busy && state.question.isNotBlank() && state.book != null) {
+                        Text("Kitaba sor")
+                    }
+                    Text(if (state.endpoint.isBlank()) "Kitapta sorunla ilgili bölümleri bulur. AI cevabı için Bağlantı ayarlarını doldur."
+                        else "İlgili bölümleri bulur ve yalnızca onlara dayanan, kaynak gösteren bir cevap ister.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton({ advanced = !advanced }, Modifier.testTag("assistant-advanced")) {
+                        Text(if (advanced) "Gelişmiş seçenekleri gizle" else "Gelişmiş: bölüm, özet, sınav soruları")
+                    }
+                }
+            }
+            if (!simple && state.book != null && state.indexState == com.yaprak.reader.domain.search.LibraryTextBookState.NOT_INDEXED) item("index-needed") {
                 Text(stringResource(R.string.assistant_index_needed), style = MaterialTheme.typography.bodySmall)
                 if (onPrepareIndex != null) AssistantActionButton(revision, "assistant-prepare-index", R.string.assistant_prepare_book_index,
                     state.active && !state.busy) {
@@ -74,33 +96,33 @@ internal fun BookAssistantScreen(state: BookAssistantState,
                         onOpenIndex(revision)
                 }
             }
-            item("mode-keywords") {
+            if (!simple) item("mode-keywords") {
                 AssistantActionButton(revision, "assistant-mode-keywords", R.string.assistant_mode_keywords, state.active && !state.busy) {
                     if (current()) onMode(BookAssistantSourceMode.KEYWORDS, revision)
                 }
             }
-            if (state.book?.let { supportsBookSourceRetrieval(it.format) } == true) item("mode-section") {
+            if (!simple && state.book?.let { supportsBookSourceRetrieval(it.format) } == true) item("mode-section") {
                 AssistantActionButton(revision, "assistant-mode-section", sectionString(state.book?.format,
                     R.string.assistant_mode_section, R.string.assistant_mode_pdf_page, R.string.assistant_mode_txt_part, R.string.assistant_mode_fb2_part, R.string.assistant_mode_docx_document), state.active && !state.busy) {
                     if (current()) onMode(BookAssistantSourceMode.SECTION, revision)
                 }
             }
-            if (state.book?.format == BookFormat.EPUB) item("mode-chapter") {
+            if (!simple && state.book?.format == BookFormat.EPUB) item("mode-chapter") {
                 AssistantActionButton(revision, "assistant-mode-chapter", R.string.assistant_mode_chapter, state.active && !state.busy) {
                     if (current()) onMode(BookAssistantSourceMode.CHAPTER, revision)
                 }
             }
-            if (state.book?.format == BookFormat.EPUB) item("mode-prefix") {
+            if (!simple && state.book?.format == BookFormat.EPUB) item("mode-prefix") {
                 AssistantActionButton(revision, "assistant-mode-prefix", R.string.assistant_mode_prefix, state.active && !state.busy) {
                     if (current()) onMode(BookAssistantSourceMode.PREFIX, revision)
                 }
             }
-            if (state.book?.format == BookFormat.EPUB) item("mode-prefix-keywords") {
+            if (!simple && state.book?.format == BookFormat.EPUB) item("mode-prefix-keywords") {
                 AssistantActionButton(revision, "assistant-mode-prefix-keywords", R.string.assistant_mode_prefix_keywords, state.active && !state.busy) {
                     if (current()) onMode(BookAssistantSourceMode.PREFIX_KEYWORDS, revision)
                 }
             }
-            item("scope") { Text(stringResource(when (state.sourceMode) {
+            if (!simple) item("scope") { Text(stringResource(when (state.sourceMode) {
                 BookAssistantSourceMode.SECTION -> sectionString(state.book?.format, R.string.assistant_section_scope,
                     R.string.assistant_pdf_page_scope, R.string.assistant_txt_part_scope, R.string.assistant_fb2_part_scope, R.string.assistant_docx_document_scope)
                 BookAssistantSourceMode.CHAPTER -> R.string.assistant_chapter_scope
@@ -114,7 +136,7 @@ internal fun BookAssistantScreen(state: BookAssistantState,
                     else -> R.string.assistant_scope
                 }
             }), style = MaterialTheme.typography.bodySmall) }
-            if (state.sourceMode in setOf(BookAssistantSourceMode.KEYWORDS, BookAssistantSourceMode.PREFIX_KEYWORDS)) item("keywords") {
+            if (!simple && state.sourceMode in setOf(BookAssistantSourceMode.KEYWORDS, BookAssistantSourceMode.PREFIX_KEYWORDS)) item("keywords") {
                 AssistantField(state.keywords, R.string.assistant_keywords, "assistant-keywords",
                     state.active && !state.busy, onValue = { if (current()) onKeywords(it) })
             }
@@ -176,7 +198,7 @@ internal fun BookAssistantScreen(state: BookAssistantState,
                     }
                 } }
             }
-            item("prepare") {
+            if (!simple) item("prepare") {
                 AssistantActionButton(revision, "assistant-prepare", R.string.assistant_prepare, state.canPrepare) {
                     if (current() && live.canPrepare) onPrepare(revision)
                 }
@@ -227,7 +249,7 @@ internal fun BookAssistantScreen(state: BookAssistantState,
                 }
                 item("study-help") { Text(stringResource(R.string.assistant_study_help), style = MaterialTheme.typography.bodySmall) }
             }
-            item("question") {
+            if (!simple && !(onAsk != null && state.sourceMode == BookAssistantSourceMode.KEYWORDS)) item("question") {
                 AssistantField(state.question, R.string.assistant_question, "assistant-question", state.active && !state.busy,
                     onValue = { if (current()) onQuestion(it) })
             }
@@ -247,7 +269,7 @@ internal fun BookAssistantScreen(state: BookAssistantState,
                         password = true, onValue = { if (current()) onToken(it) })
                 }
             }
-            item("send-help") {
+            if (!simple) item("send-help") {
                 Text(stringResource(when (state.sourceMode) {
                     BookAssistantSourceMode.SECTION -> sectionString(state.book?.format, R.string.assistant_section_send_help,
                         R.string.assistant_complete_part_send_help, R.string.assistant_complete_part_send_help, R.string.assistant_complete_part_send_help, R.string.assistant_docx_document_send_help)
@@ -259,7 +281,7 @@ internal fun BookAssistantScreen(state: BookAssistantState,
                     Modifier.testTag("assistant-send-help"), style = MaterialTheme.typography.bodySmall)
                 if (state.endpoint.isNotBlank()) Text(state.endpoint, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall)
             }
-            item("send") {
+            if (!simple) item("send") {
                 AssistantActionButton(revision, "assistant-send", R.string.assistant_send, state.canSend) {
                     if (current() && live.canSend) onSend(revision)
                 }

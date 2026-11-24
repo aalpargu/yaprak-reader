@@ -79,7 +79,7 @@ class SelectedTextToolsUiTest {
         var state by mutableStateOf(loaded.copy(loading = true, tools = emptyList()))
         var web = 0; var retry = 0; val processed = mutableListOf<SelectedTextTool>()
         compose.setContent { YaprakTheme { SelectedTextDialog(preview, {}, {}, toolsState = state,
-            onWebSearch = { web++ }, onTextTool = processed::add, onRetryTools = { retry++ }) } }
+            onWebSearch = { web++ }, onTextTool = processed::add, onRetryTools = { retry++ }) } }; expandTools()
         assertEquals(0, web); assertTrue(processed.isEmpty())
         compose.onNodeWithText(text(R.string.selected_tools_loading)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("selected-text-web").performScrollTo().performClick(); assertEquals(1, web)
@@ -93,7 +93,7 @@ class SelectedTextToolsUiTest {
         compose.runOnIdle { state = loaded.copy(launchFailure = SelectedTextToolFailure.NO_HANDLER) }
         compose.onNodeWithText(text(R.string.selected_tools_unavailable)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(preview.text).assertExists()
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed(); compose.onNodeWithText("Kapat").assertIsDisplayed()
+        compose.onNodeWithText("Kopyala").assertIsDisplayed(); compose.onNodeWithText("Kapat").assertIsDisplayed()
     }
 
     @Test fun `old tools and web callbacks reject replacement state callback preview and disposed composition`() {
@@ -103,7 +103,7 @@ class SelectedTextToolsUiTest {
         val webOne: () -> Unit = { effects++ }; val webTwo: () -> Unit = { effects += 100 }
         val process: (SelectedTextTool) -> Unit = { effects++ }
         compose.setContent { YaprakTheme { if (shown) SelectedTextDialog(currentPreview, {}, {}, toolsState = state,
-            onWebSearch = if (changed) webTwo else webOne, onTextTool = process) } }
+            onWebSearch = if (changed) webTwo else webOne, onTextTool = process) } }; expandTools()
         val web = action("selected-text-web"); val toolAction = action(toolTag)
         val close = compose.onNodeWithText("Kapat").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { state = loaded.copy(launchFailure = SelectedTextToolFailure.SOURCE); changed = true }
@@ -119,9 +119,9 @@ class SelectedTextToolsUiTest {
     @Test fun `native narrow double type original tool label and transfer help scroll with fixed copy close`() {
         largeFont()
         compose.setContent { YaprakTheme { SelectedTextDialog(preview, {}, {}, toolsState = loaded,
-            onWebSearch = {}, onTextTool = {}) } }
+            onWebSearch = {}, onTextTool = {}) } }; expandTools()
         readableScroll(text(R.string.selected_tools_transfer_help)); readableScroll(tool.label)
-        readableScroll(text(R.string.selected_tools_web)); assertFooter()
+        compose.onNodeWithText(text(R.string.selected_tools_web), useUnmergedTree = true).performScrollTo().assertIsDisplayed(); assertFooter()
         capture("selected-tools-narrow-double-type")
     }
 
@@ -129,9 +129,14 @@ class SelectedTextToolsUiTest {
     fun `native short landscape double type unavailable handler is readable and close remains fixed`() {
         largeFont()
         compose.setContent { YaprakTheme { SelectedTextDialog(preview, {}, {}, toolsState = loaded.copy(
-            launchFailure = SelectedTextToolFailure.NO_HANDLER), onWebSearch = {}, onTextTool = {}) } }
+            launchFailure = SelectedTextToolFailure.NO_HANDLER), onWebSearch = {}, onTextTool = {}) } }; expandTools()
         readableScroll(text(R.string.selected_tools_unavailable)); assertFooter()
         capture("selected-tools-landscape-double-type")
+    }
+    /** Other text apps sit behind an explicit disclosure button. */
+    private fun expandTools() {
+        if (compose.onAllNodesWithText("Diğer uygulamalarla aç").fetchSemanticsNodes().isNotEmpty())
+            compose.onNodeWithText("Diğer uygulamalarla aç").performScrollTo().performClick()
     }
     private fun text(id: Int) = compose.activity.getString(id)
     private fun action(tag: String): () -> Boolean = compose.onNodeWithTag(tag).performScrollTo().fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
@@ -145,7 +150,7 @@ class SelectedTextToolsUiTest {
         assertEquals(layout.layoutInput.text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
     }
     private fun assertFooter() {
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed(); readable("Panoya kopyala")
+        compose.onNodeWithText("Kopyala").assertIsDisplayed(); readable("Kopyala")
         compose.onNodeWithText("Kapat").assertIsDisplayed(); readable("Kapat")
         val body = compose.onNodeWithTag("selected-text-body").fetchSemanticsNode().boundsInRoot
         val close = compose.onNodeWithText("Kapat").fetchSemanticsNode().boundsInRoot

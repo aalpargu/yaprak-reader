@@ -1,8 +1,10 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.graphics.Bitmap
 import androidx.fragment.app.Fragment
 import com.yaprak.reader.YaprakApplication
+import com.yaprak.reader.core.StartupState
 import com.yaprak.reader.domain.bookmarks.BookmarkTarget
 import com.yaprak.reader.domain.library.Book
 import com.yaprak.reader.domain.library.BookFormat
@@ -48,6 +50,7 @@ import com.yaprak.reader.reader.ReaderSession
 import com.yaprak.reader.reader.ReaderSurface
 import java.lang.reflect.InvocationTargetException
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlinx.coroutines.CancellationException
@@ -67,6 +70,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
+import org.robolectric.shadows.ShadowLooper
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
@@ -260,7 +264,7 @@ class PdfThumbnailsActivityTest {
     }
 
     private fun openLinks(activity: ReaderActivity, owner: ReaderSurface, page: Int) {
-        activity.javaClass.getDeclaredMethod("openPdfPageLinks", ReaderSurface::class.java, Int::class.javaPrimitiveType!!)
+        activity.javaClass.readerMethod("openPdfPageLinks", ReaderSurface::class.java, Int::class.javaPrimitiveType!!)
             .apply { isAccessible = true }.invoke(activity, owner, page)
     }
 
@@ -310,6 +314,51 @@ class PdfThumbnailsActivityTest {
             host.resume(); runCurrent(); assertNull(property(activity,"getPdfAnnotationsRequest")); assertTrue(storage.records.isEmpty())
         }
     }
+    @Test fun acceptedRouteCompletionRunsBeforeChromeRevokesTheCallingExposure() = runTest {
+        withHost {
+            surface.tap(); runCurrent()
+            val presentation=ReaderActivity::class.java.getDeclaredField("presentation")
+                .apply { isAccessible=true }.get(activity) as com.yaprak.reader.feature.reader.ReaderPresentationController
+            presentation.request(com.yaprak.reader.feature.reader.ReaderPanelKind.BOOKMARKS,true)
+            val before=presentation.state.value
+            var closes=0
+            val complete: () -> Boolean = {
+                assertEquals(before.epoch,presentation.state.value.epoch)
+                assertEquals(before.activePanel,presentation.state.value.activePanel)
+                closes++
+                presentation.request(com.yaprak.reader.feature.reader.ReaderPanelKind.BOOKMARKS,false)
+                true
+            }
+            val accepted=ReaderActivity::class.java.readerMethod("selectBookmark",ReadingLocation::class.java,Function0::class.java)
+                .apply { isAccessible=true }.invoke(activity,location(4),complete) as Boolean
+            assertTrue(accepted); assertEquals(1,closes)
+            assertFalse(presentation.state.value.controlsVisible)
+            assertTrue(presentation.state.value.epoch>before.epoch)
+            assertFalse(presentation.hasRequest(com.yaprak.reader.feature.reader.ReaderPanelKind.BOOKMARKS))
+            assertTrue(storage.records.isEmpty())
+        }
+    }
+    @Test fun rejectedPdfAnnotationNavigationKeepsItsWindowAndOnlyAnAcceptedCurrentRequestCloses() = runTest {
+        withHost {
+            surface.tap(); runCurrent(); invoke(activity,"openPdfAnnotations"); runCurrent()
+            val window=property(activity,"getPdfAnnotationsRequest") as com.yaprak.reader.feature.pdfannotations.PdfAnnotationsWindow
+            fun select(expected: com.yaprak.reader.feature.pdfannotations.PdfAnnotationsWindow): Boolean =
+                ReaderActivity::class.java.readerMethod("openPdfAnnotationPage",
+                    com.yaprak.reader.feature.pdfannotations.PdfAnnotationsWindow::class.java,
+                    com.yaprak.reader.reader.PdfSourceAnchor::class.java).apply { isAccessible=true }
+                    .invoke(activity,expected,PDF_TEST_ANCHOR) as Boolean
+            surface.pages.accepts=false
+            assertFalse(select(window)); runCurrent()
+            assertSame(window,property(activity,"getPdfAnnotationsRequest")); assertTrue(window.lifetime.isActive)
+            surface.pages.accepts=true
+            assertTrue(select(window)); runCurrent()
+            assertNull(property(activity,"getPdfAnnotationsRequest")); assertFalse(window.lifetime.isActive)
+            surface.tap(); runCurrent(); invoke(activity,"openPdfAnnotations"); runCurrent()
+            val current=property(activity,"getPdfAnnotationsRequest") as com.yaprak.reader.feature.pdfannotations.PdfAnnotationsWindow
+            assertFalse(select(window)); assertSame(current,property(activity,"getPdfAnnotationsRequest"))
+            assertTrue(current.lifetime.isActive); assertTrue(storage.records.isEmpty())
+        }
+    }
     private class OcrSource(val page: () -> Int?) : com.yaprak.reader.reader.PdfOcrSource {
         var id: String? = null; var captures = 0; var prepares = 0; var index = 0
         var captureText: suspend () -> SelectedText? = {
@@ -324,7 +373,7 @@ class PdfThumbnailsActivityTest {
         override suspend fun capture(): SelectedText? { captures++; return captureText() }
     }
     private fun ocr(activity: ReaderActivity, expected: ReaderSurface, page: Int) {
-        activity.javaClass.getDeclaredMethod("openPdfOcr", ReaderSurface::class.java, Int::class.javaPrimitiveType!!)
+        activity.javaClass.readerMethod("openPdfOcr", ReaderSurface::class.java, Int::class.javaPrimitiveType!!)
             .apply { isAccessible = true }.invoke(activity, expected, page)
     }
     @Test fun ocrGeneralNoteTransferWorksWithoutTheAndroidFifteenNativeSelectionCapability() = runTest {
@@ -427,7 +476,7 @@ class PdfThumbnailsActivityTest {
     }
     @Test fun emptyAndBusyOcrShowErrorsWithNoInventedResultAndCanCloseForRetry() = runTest {
         withHost {
-            surface.tap(); runCurrent()
+            // T1 starts in reading mode with controls hidden; keep that state for the resume check.
             surface.ocr.captureText = { null }; ocr(activity, surface, 2); runCurrent()
             assertTrue((property(activity, "getSelectionPreview") as SelectedTextPreview.Error).message.contains("OCR metni bulunamadı"))
             invoke(activity, "clearSelectionPreview"); invoke(activity, "observeSurface"); runCurrent()
@@ -621,7 +670,7 @@ class PdfThumbnailsActivityTest {
 
     @Test fun `browsing and rendering previews do not navigate or record and modal blocks reader tools and coverage`() = runTest {
         withHost {
-            surface.tap(); runCurrent()
+            // The hidden-controls default is the reading state whose coverage is tested here.
             assertTrue(surface.swipeAllowed!!.invoke())
             assertTrue(surface.coverageAllowed!!.invoke())
             val applies = surface.nightApplies.toList()
@@ -638,7 +687,7 @@ class PdfThumbnailsActivityTest {
             invoke(activity, "fitPdf", Boolean::class.javaPrimitiveType!!, false)
             assertFalse(navigate(activity) { surface.forward() })
             var toolbarCalls = 0
-            activity.javaClass.getDeclaredMethod("readerAction", Function0::class.java)
+            activity.javaClass.readerMethod("readerAction", Function0::class.java)
                 .apply { isAccessible = true }.invoke(activity, { toolbarCalls++ })
             invoke(activity, "openOrientation"); invoke(activity, "openBrightness")
             invoke(activity, "openBookNotes"); invoke(activity, "togglePdfNightMode")
@@ -948,7 +997,7 @@ class PdfThumbnailsActivityTest {
 
     @Test fun closingPendingSelectionCancelsCaptureAndLateUninterruptibleResultCannotReplaceNewSelection() = runTest {
         withHost {
-            surface.tap(); runCurrent()
+            // Start in the actual T1 reading state so cancelling can restore reading admission.
             val late = CompletableDeferred<SelectedText?>()
             surface.selections.captureText = { withContext(NonCancellable) { late.await() } }
             val old = surface.selections.accept(); runCurrent()
@@ -1031,6 +1080,15 @@ class PdfThumbnailsActivityTest {
             val night = PdfNightModeViewModel(nightPreferences)
             val translation = com.yaprak.reader.feature.translation.TranslationViewModel(translationService)
             host.create()
+            val startup=(host.get().application as YaprakApplication).container.startup
+            val startupDeadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(10)
+            while(startup.state.value!=StartupState.Ready) {
+                ShadowLooper.idleMainLooper(); runCurrent()
+                check(startup.state.value!=StartupState.Failed && System.nanoTime()<startupDeadline) {
+                    "The Activity fixture's real startup gate did not become ready: ${startup.state.value}"
+                }
+                Thread.yield()
+            }
             fun install(model: androidx.lifecycle.ViewModel) {
                 host.get().viewModelStore.put("androidx.lifecycle.ViewModelProvider.DefaultKey:${model.javaClass.canonicalName}", model)
             }
@@ -1046,41 +1104,41 @@ class PdfThumbnailsActivityTest {
     }
 
     private fun invoke(activity: ReaderActivity, name: String) {
-        activity.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(name).apply { isAccessible = true }.invoke(activity)
     }
     private fun invoke(activity: ReaderActivity, name: String, type: Class<*>, argument: Any) {
-        activity.javaClass.getDeclaredMethod(name, type).apply { isAccessible = true }.invoke(activity, argument)
+        activity.javaClass.readerMethod(name, type).apply { isAccessible = true }.invoke(activity, argument)
     }
     private fun property(activity: ReaderActivity, getter: String): Any? =
-        activity.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(getter).apply { isAccessible = true }.invoke(activity)
     private fun translationCurrent(activity: ReaderActivity, expected: com.yaprak.reader.feature.translation.TranslationState): Boolean =
-        activity.javaClass.getDeclaredMethod("isTranslationCurrent", com.yaprak.reader.feature.translation.TranslationState::class.java)
+        activity.javaClass.readerMethod("isTranslationCurrent", com.yaprak.reader.feature.translation.TranslationState::class.java)
             .apply { isAccessible = true }.invoke(activity, expected) as Boolean
     private fun request(activity: ReaderActivity) = property(activity, "getPdfThumbnailsRequest") as PdfThumbnailsRequest?
     private fun current(activity: ReaderActivity, expected: PdfThumbnailsRequest): Boolean =
-        activity.javaClass.getDeclaredMethod("isPdfThumbnailsCurrent", PdfThumbnailsRequest::class.java)
+        activity.javaClass.readerMethod("isPdfThumbnailsCurrent", PdfThumbnailsRequest::class.java)
             .apply { isAccessible = true }.invoke(activity, expected) as Boolean
     private fun select(activity: ReaderActivity, expected: PdfThumbnailsRequest, page: Int): Boolean =
-        activity.javaClass.getDeclaredMethod("selectPdfThumbnail", PdfThumbnailsRequest::class.java,
+        activity.javaClass.readerMethod("selectPdfThumbnail", PdfThumbnailsRequest::class.java,
             Int::class.javaPrimitiveType!!).apply { isAccessible = true }.invoke(activity, expected, page) as Boolean
     private fun dismiss(activity: ReaderActivity, expected: PdfThumbnailsRequest) {
-        activity.javaClass.getDeclaredMethod("dismissPdfThumbnails", PdfThumbnailsRequest::class.java)
+        activity.javaClass.readerMethod("dismissPdfThumbnails", PdfThumbnailsRequest::class.java)
             .apply { isAccessible = true }.invoke(activity, expected)
     }
     private fun navigate(activity: ReaderActivity, action: () -> Boolean): Boolean =
-        activity.javaClass.getDeclaredMethod("navigate", Function0::class.java)
+        activity.javaClass.readerMethod("navigate", Function0::class.java)
             .apply { isAccessible = true }.invoke(activity, action) as Boolean
     private fun setSurface(activity: ReaderActivity, surface: ReaderSurface) {
         activity.javaClass.getDeclaredField("surface").apply { isAccessible = true }.set(activity, surface)
     }
     private fun setNavigator(activity: ReaderActivity, navigator: PageNavigator) {
-        activity.javaClass.getDeclaredMethod("setPageNavigator", PageNavigator::class.java)
+        activity.javaClass.readerMethod("setPageNavigator", PageNavigator::class.java)
             .apply { isAccessible = true }.invoke(activity, navigator)
     }
     private suspend fun render(activity: ReaderActivity, expected: PdfThumbnailsRequest, page: Int): Bitmap =
         suspendCoroutineUninterceptedOrReturn { continuation ->
             try {
-                activity.javaClass.getDeclaredMethod("renderPdfThumbnail", PdfThumbnailsRequest::class.java,
+                activity.javaClass.readerMethod("renderPdfThumbnail", PdfThumbnailsRequest::class.java,
                     Int::class.javaPrimitiveType!!, Continuation::class.java).apply { isAccessible = true }
                     .invoke(activity, expected, page, continuation)
             } catch (wrapped: InvocationTargetException) { throw wrapped.targetException }

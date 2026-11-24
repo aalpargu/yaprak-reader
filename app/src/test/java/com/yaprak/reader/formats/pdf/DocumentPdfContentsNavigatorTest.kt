@@ -26,7 +26,7 @@ class DocumentPdfContentsNavigatorTest {
         var validate: suspend (Book) -> Unit = {}
         var parse: () -> ParsedPdfOutline = { ParsedPdfOutline(listOf(PdfOutlineRow("0", "Actual page", 0, 1),
             PdfOutlineRow("1", "External action", 0, null)), false) }
-        val jumps = mutableListOf<Int>()
+        val jumps = mutableListOf<PdfResumePosition>()
         fun source(dispatcher: CoroutineDispatcher, overrideBook: Book = book) = DocumentPdfContentsNavigator(
             overrideBook, 3, VerifiedBookFile(directory), Mutex(), { validate(it) },
             { _, _, checkActive -> checkActive(); reads++; parse() }, { active }, { jumps += it; true }, dispatcher)
@@ -37,7 +37,7 @@ class DocumentPdfContentsNavigatorTest {
         val contents = source.loadContents(); assertEquals(1, f.reads); assertTrue(f.jumps.isEmpty())
         assertTrue(contents.entries[0].navigable); assertFalse(contents.entries[1].navigable)
         assertFalse(source.goTo("invented")); assertFalse(source.goTo(contents.entries[1].id))
-        assertTrue(source.goTo(contents.entries[0].id)); assertEquals(listOf(1), f.jumps)
+        assertTrue(source.goTo(contents.entries[0].id)); assertEquals(listOf(PdfResumePosition(1)), f.jumps)
         assertArrayEquals(f.original, f.file.readBytes())
     }
 
@@ -45,6 +45,27 @@ class DocumentPdfContentsNavigatorTest {
         val f = Fixture(temp.newFolder()); val source = f.source(UnconfinedTestDispatcher(testScheduler))
         val old = source.loadContents().entries[0].id; val next = source.loadContents().entries[0].id
         assertNotEquals(old, next); assertFalse(source.goTo(old)); assertTrue(source.goTo(next))
+    }
+
+    @Test fun onlyCurrentIssuedTargetsCanCarryTheirVerifiedOriginalPagePoint() = runTest {
+        val f = Fixture(temp.newFolder()); val source = f.source(UnconfinedTestDispatcher(testScheduler))
+        f.parse = { ParsedPdfOutline(listOf(PdfOutlineRow("0", "Point", 0, 1, 400_000)), false) }
+        val old = source.loadContents().entries.single().id
+        assertTrue(source.goTo(old)); assertEquals(listOf(PdfResumePosition(1, 400_000)), f.jumps)
+        f.parse = { ParsedPdfOutline(listOf(PdfOutlineRow("0", "Next", 0, 2, 600_000)), false) }
+        val fresh = source.loadContents().entries.single().id
+        assertFalse(source.goTo(old)); assertTrue(source.goTo(fresh))
+        assertEquals(PdfResumePosition(2, 600_000), f.jumps.last())
+    }
+
+    @Test fun invalidPointCannotBecomeANavigableIssuedTarget() = runTest {
+        val f = Fixture(temp.newFolder()); val source = f.source(UnconfinedTestDispatcher(testScheduler))
+        for (point in listOf(-1, 1_000_001)) {
+            f.parse = { ParsedPdfOutline(listOf(PdfOutlineRow("0", "Invalid", 0, 1, point)), false) }
+            val entry = source.loadContents().entries.single()
+            assertFalse(entry.navigable); assertFalse(source.goTo(entry.id))
+        }
+        assertTrue(f.jumps.isEmpty())
     }
 
     @Test fun changedOriginalBeforeParsingNeverCallsTheParser() = runTest {

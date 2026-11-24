@@ -43,12 +43,12 @@ class WordReviewMigrationTest {
         val name = "srm-${UUID.randomUUID().toString().take(8)}.db"
         try {
             old(name)
-            val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name).addMigrations(LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build()
+            val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name).addMigrations(LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build()
             try {
                 val words = RoomSavedWordRepository(db)
                 val word = words.observe("book", "a".repeat(64)).first().single()
                 assertEquals("leaf", word.english); assertEquals("yaprak", word.turkish); assertEquals(7L, word.createdAt); assertEquals(0L, word.revision)
-                assertEquals(26, db.openHelper.writableDatabase.version)
+                assertEquals(28, db.openHelper.writableDatabase.version)
                 val sql = db.openHelper.writableDatabase
                 assertEquals("Exact note", sql.compileStatement("SELECT text FROM book_notes").simpleQueryForString())
                 assertEquals(0L, sql.compileStatement("SELECT COUNT(*) FROM word_review_events").simpleQueryForLong())

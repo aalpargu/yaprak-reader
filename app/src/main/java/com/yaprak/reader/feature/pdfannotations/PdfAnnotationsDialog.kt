@@ -20,6 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yaprak.reader.domain.pdfannotations.*
+import com.yaprak.reader.feature.reader.readerDialogReturnFocusTarget
 
 @Composable
 internal fun PdfAnnotationRoute(request: PdfAnnotationRequest, repository: PdfAnnotationRepository,
@@ -87,12 +88,28 @@ internal fun PdfAnnotationEditorDialog(request: PdfAnnotationRequest, state: Pdf
 internal fun PdfAnnotationsRoute(request: PdfAnnotationsWindow, repository: PdfAnnotationRepository,
     canMutate: () -> Boolean, goToPage: (com.yaprak.reader.reader.PdfSourceAnchor) -> Boolean, onDismiss: () -> Unit, onCopy: (String) -> Unit) {
     val model: PdfAnnotationsViewModel=viewModel(key="pdf-annotations-${request.id}",factory=viewModelFactory { initializer { PdfAnnotationsViewModel(request,repository) } })
-    val state by model.state.collectAsStateWithLifecycle()
+    val state = model.state.collectAsStateWithLifecycle().value
     val allowed by rememberUpdatedState(canMutate)
     val currentState by rememberUpdatedState(state)
     val lease=remember(request.id) { PdfAnnotationUiLease() }
     DisposableEffect(model,lease) { lease.active=true; onDispose { lease.active=false; model.close() } }
     fun fresh()=lease.active && request.lifetime.isActive && allowed() && currentState===state
+    val listScroll = rememberScrollState()
+    var suspendedEditor by remember(request.id) { mutableStateOf<String?>(null) }
+    var returnFocus by remember(request.id) { mutableStateOf<String?>(null) }
+    val editorId = state.editor?.expected?.id
+    val writable = canMutate()
+    val canFocusCaller = writable && state.canAct && state.deleteCandidate == null && request.editingSupported
+    LaunchedEffect(editorId, canFocusCaller, state.visibleEntries) {
+        if (editorId != null) { suspendedEditor = editorId; returnFocus = null }
+        else {
+            suspendedEditor?.let { id -> returnFocus = id; suspendedEditor = null }
+            returnFocus?.takeIf { it != "close" }?.let { id ->
+                if (!canFocusCaller || state.visibleEntries.none { it.id == id && it.revision < Long.MAX_VALUE })
+                    returnFocus = "close"
+            }
+        }
+    }
     state.editor?.let { editor ->
         PdfAnnotationRoute(editor,repository,{ lease.active && allowed() && model.state.value.editor===editor },{ model.closeEditor(editor) })
     }
@@ -101,7 +118,7 @@ internal fun PdfAnnotationsRoute(request: PdfAnnotationsWindow, repository: PdfA
         Surface(Modifier.padding(horizontal=16.dp).widthIn(max=600.dp).fillMaxWidth(),shape=MaterialTheme.shapes.extraLarge,tonalElevation=6.dp) {
             Column(Modifier.fillMaxWidth().heightIn(max=620.dp).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                 Text("PDF vurguları ve notlar",style=MaterialTheme.typography.headlineSmall)
-                Column(Modifier.weight(1f,fill=false).verticalScroll(rememberScrollState()).testTag("pdf-annotations-body"),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f,fill=false).verticalScroll(listScroll).testTag("pdf-annotations-body"),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(state.query,{ if(fresh()) model.search(it) },enabled=!state.busy,
                         modifier=Modifier.fillMaxWidth().testTag("pdf-annotations-search"),label={ Text("Metin veya not içinde ara") },singleLine=true)
                     if(!request.editingSupported) Text("Renk ve bağlı not düzenlemek Android 15 veya sonrasını gerektirir. Kayıtları okuyabilir, dışa aktarabilir veya silebilirsin.",style=MaterialTheme.typography.bodySmall)
@@ -114,10 +131,10 @@ internal fun PdfAnnotationsRoute(request: PdfAnnotationsWindow, repository: PdfA
                             Column(Modifier.fillMaxWidth().testTag("pdf-annotation-row-${record.id}"),verticalArrangement=Arrangement.spacedBy(6.dp)) {
                                 Text("PDF sayfası ${record.anchor.pageIndex.toLong()+1} · ${record.highlightColor.pdfColorLabel()}",style=MaterialTheme.typography.labelLarge)
                                 Text(record.text); record.attachedNote?.let { Text("Bağlı not:",style=MaterialTheme.typography.labelMedium); Text(it) }
-                                val enabled=state.canAct && state.deleteCandidate==null
+                                val enabled=writable && state.canAct && state.deleteCandidate==null
                                 TextButton(onClick={ if(fresh() && enabled) model.openPage(record,{ allowed() },goToPage) },enabled=enabled,modifier=Modifier.fillMaxWidth()) { Text("Kaydı aç") }
                                 TextButton(onClick={ if(fresh() && enabled) onCopy(record.text+record.attachedNote?.let { "\n\nBağlı not:\n$it" }.orEmpty()) },enabled=enabled,modifier=Modifier.fillMaxWidth()) { Text("Kopyala") }
-                                TextButton(onClick={ if(fresh() && enabled) model.edit(record) },enabled=enabled && request.editingSupported && record.revision<Long.MAX_VALUE,modifier=Modifier.fillMaxWidth()) { Text("Düzenle") }
+                                TextButton(onClick={ if(fresh() && enabled) model.edit(record) },enabled=enabled && request.editingSupported && record.revision<Long.MAX_VALUE,modifier=Modifier.fillMaxWidth().readerDialogReturnFocusTarget(returnFocus == record.id) { returnFocus = null }.testTag("pdf-annotation-edit-${record.id}")) { Text("Düzenle") }
                                 TextButton(onClick={ if(fresh() && enabled) model.askDelete(record) },enabled=enabled,modifier=Modifier.fillMaxWidth()) { Text("Sil") }
                                 HorizontalDivider()
                             }
@@ -131,7 +148,7 @@ internal fun PdfAnnotationsRoute(request: PdfAnnotationsWindow, repository: PdfA
                     if(state.busy) Text("İşlem sürüyor…")
                     state.error?.let { Text(it.pdfErrorText(),color=MaterialTheme.colorScheme.error) }
                 }
-                TextButton(onClick={ if(lease.active && request.lifetime.isActive) { model.close(); onDismiss() } },modifier=Modifier.fillMaxWidth().testTag("pdf-annotations-close")) {
+                TextButton(onClick={ if(lease.active && request.lifetime.isActive) { model.close(); onDismiss() } },modifier=Modifier.fillMaxWidth().readerDialogReturnFocusTarget(returnFocus == "close") { returnFocus = null }.testTag("pdf-annotations-close")) {
                     Text("Kapat",Modifier.fillMaxWidth(),textAlign=TextAlign.Center)
                 }
             }

@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [BookEntity::class, ReadingProgressEntity::class, ObservedTextEntity::class, BookmarkEntity::class, BookEpubThemeOverrideEntity::class, BookEpubFontSizeOverrideEntity::class, BookEpubFontOverrideEntity::class, BookEpubTextAlignmentOverrideEntity::class, BookEpubReadingModeOverrideEntity::class, BookEpubMarginOverrideEntity::class, BookEpubLineSpacingOverrideEntity::class, BookEpubSpacingOverrideEntity::class, SavedWordEntity::class, BookNoteEntity::class, EpubPassageEntity::class, BookOrganizationEntity::class, BookCoverEntity::class, ReadingDurationReceiptEntity::class, BookPdfViewPreferencesEntity::class, BookPdfNavigationPreferencesEntity::class, BookCbzViewPreferencesEntity::class, EpubRangePassageEntity::class, PdfAnnotationEntity::class, WordScheduleEntity::class, WordReviewEventEntity::class, BookCompletionEventEntity::class], version = 26, exportSchema = true)
+@Database(entities = [BookEntity::class, ReadingProgressEntity::class, ObservedTextEntity::class, BookmarkEntity::class, BookEpubThemeOverrideEntity::class, BookEpubFontSizeOverrideEntity::class, BookEpubFontOverrideEntity::class, BookEpubTextAlignmentOverrideEntity::class, BookEpubReadingModeOverrideEntity::class, BookEpubMarginOverrideEntity::class, BookEpubLineSpacingOverrideEntity::class, BookEpubSpacingOverrideEntity::class, SavedWordEntity::class, BookNoteEntity::class, EpubPassageEntity::class, BookOrganizationEntity::class, BookCoverEntity::class, ReadingDurationReceiptEntity::class, BookPdfViewPreferencesEntity::class, BookPdfNavigationPreferencesEntity::class, BookCbzViewPreferencesEntity::class, EpubRangePassageEntity::class, PdfAnnotationEntity::class, WordScheduleEntity::class, WordReviewEventEntity::class, BookCompletionEventEntity::class, ReadingPageReceiptEntity::class, PdfInkStrokeEntity::class], version = 28, exportSchema = true)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun books(): BookDao
     abstract fun reading(): ReadingDao
@@ -24,8 +24,23 @@ abstract class LibraryDatabase : RoomDatabase() {
     abstract fun bookCovers(): BookCoverDao
     abstract fun readingDurations(): ReadingDurationReceiptDao
     abstract fun bookPdfViewPreferences(): BookPdfViewPreferencesDao
+    abstract fun pdfInkStrokes(): PdfInkStrokeDao
 
     companion object {
+        val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // New table only: every existing row keeps every cell; books start with no highlighter ink.
+                db.execSQL("CREATE TABLE IF NOT EXISTS pdf_ink_strokes (id TEXT NOT NULL, bookId TEXT NOT NULL, contentSha256 TEXT NOT NULL, pageIndex INTEGER NOT NULL, color TEXT NOT NULL, mode TEXT NOT NULL, geometry TEXT NOT NULL, createdAt INTEGER NOT NULL, PRIMARY KEY(id), FOREIGN KEY(bookId) REFERENCES books(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pdf_ink_strokes_bookId_contentSha256_pageIndex ON pdf_ink_strokes (bookId, contentSha256, pageIndex)")
+            }
+        }
+        val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // New table only: older reading records keep every cell; their page count stays unknown.
+                db.execSQL("CREATE TABLE IF NOT EXISTS reading_page_receipts (id TEXT NOT NULL, bookId TEXT NOT NULL, contentSha256 TEXT NOT NULL, localDate TEXT NOT NULL, pages INTEGER NOT NULL, PRIMARY KEY(id), FOREIGN KEY(bookId) REFERENCES books(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_reading_page_receipts_bookId_contentSha256_localDate ON reading_page_receipts (bookId, contentSha256, localDate)")
+            }
+        }
         val MIGRATION_25_26 = object : Migration(25, 26) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Add only: existing crop/fit/spread and all reading records remain unchanged.

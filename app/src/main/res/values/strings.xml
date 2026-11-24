@@ -53,6 +53,7 @@
     <string name="sort_last_read">Son okunanlar</string>
     <string name="continue_reading_title">Kaldığın yerden devam et</string>
     <string name="continue_reading_action">Okumaya devam et</string>
+    <string name="continue_reading_shortcut_long">Devam et: %1$s</string>
     <string name="sort_title">Başlık A–Z</string>
     <string name="sort_author">Yazar A–Z</string>
     <string name="search_books">Kitaplıkta ara</string>
@@ -62,7 +63,7 @@
     <string name="filter_epub">EPUB</string>
     <string name="filter_pdf">PDF</string>
     <string name="filter_txt">TXT</string>
-    <string name="filter_no_position">Konum kaydı yok</string>
+    <string name="filter_no_position">Başlanmamış</string>
     <string name="filter_accessibility">Filtre: %1$s</string>
     <string name="no_search_results">Eşleşen kitap yok.</string>
     <string name="no_search_results_body">Başlık, yazar, seri, tür, etiket veya koleksiyonla ara. Kitapların kitaplığında duruyor.</string>
@@ -106,7 +107,7 @@
     <string name="export_book">Dosyayı dışa aktar</string>
     <string name="exporting_book">Kitap dosyası dışa aktarılıyor…</string>
     <string name="exporting_book_body">Seçtiğin konuma kopyalama tamamlanınca haber verilecek.</string>
-    <string name="export_file_only">Yalnız kitap dosyası dışa aktarılır. Notlar ve okuma konumu bu kopyada yoktur.</string>
+    <string name="export_file_only">Yalnız kitap dosyası; notlar dahil değil.</string>
     <string name="export_success">Kitap dosyası dışa aktarıldı.</string>
     <string name="export_error_missing_book">Kitap kaydı bulunamadı. Kitaplığı yeniden yükle.</string>
     <string name="export_error_changed_source">Kitap dosyası değişmiş veya kaybolmuş. Dışa aktarma yapılmadı.</string>
@@ -115,7 +116,7 @@
     <string name="export_partial_warning">Seçilen konumda eksik bir dosya kalmış olabilir. Kullanma; oradan silip yeniden dene.</string>
     <string name="export_study_records">Çalışma kayıtlarını dışa aktar</string>
     <string name="export_study_records_body">Bu kitaba ait kaydedilmiş notlar, kelimeler ve pasajlar .txt metin dosyasına yazılır. Kitap dosyası ve okuma konumu dahil değildir.</string>
-    <string name="export_study_formats_body">Bu kitaba ait kayıtları TXT, Markdown veya PDF olarak, yalnız kaydedilmiş kelime çiftlerini Anki kartları olarak aktar. Kitap dosyası ve okuma konumu dahil değildir.</string>
+    <string name="export_study_formats_body">Notlar, vurgular ve kelimeler: TXT, Markdown, PDF veya Anki.</string>
     <string name="study_export_format_title">Aktarım biçimini seç</string>
     <string name="study_export_format_cancel">Vazgeç</string>
     <string name="study_export_format_text">TXT · Düz metin</string>
@@ -124,11 +125,11 @@
     <string name="study_export_format_markdown_help">Notlar, kelimeler ve pasajlar. Obsidian veya Notion’a dosya olarak alabilirsin.</string>
     <string name="study_export_format_anki">Anki · Kelime kartları</string>
     <string name="study_export_format_anki_study">Anki · Not, vurgu ve kelime kartları</string>
-    <string name="study_export_format_anki_study_help">Her kayıt bir Ön/Arka satırı oluşturur. Seçili metin öne, bağlı not ve kitap/kaynak bilgisi arkaya yazılır. Genel notlar ve kelimeler de dahil edilir. .tsv dosyasını Anki’de Temel not türüne Ön/Arka alanlarıyla aktar; önizlemeyi kontrol et. Aynı ön metni ayrı kayıt olarak almak için içe aktarırken mevcut notları güncellemek yerine yeni not olarak eklemeyi seç.</string>
+    <string name="study_export_format_anki_study_help">Her kayıt bir Anki kartı olur: seçili metin ön yüzde, notun ve kaynağı arka yüzde. Dosyayı Anki’de Temel not türüne Ön/Arka alanlarıyla aktar.</string>
     <string name="study_export_anki_study_success">Anki için %1$d Ön/Arka kaydı dışa aktarıldı. Dosyayı Anki’de içe aktar.</string>
     <string name="study_export_format_anki_help">Yalnız kayıtlı İngilizce–Türkçe çiftleri .tsv dosyasına yazılır. Anki’de Ön/Arka alanlarını seçerek içe aktar.</string>
     <string name="study_export_format_pdf">PDF · Okunabilir belge</string>
-    <string name="study_export_format_pdf_help">Kayıtlı notlar, kelime çiftleri ve EPUB pasajları; vurgu rengi, bağlı not ve kaynak bilgisiyle okunabilir .pdf belgesine yazılır. En fazla 1.000 kayıt, 1 MiB kaynak metin, 200 sayfa ve 8 MiB dosya desteklenir.</string>
+    <string name="study_export_format_pdf_help">Notların, kelimelerin ve alıntıların renk ve kaynak bilgisiyle okunabilir bir PDF belgesine yazılır.</string>
     <string name="study_export_error_unsupported_format">Seçilen aktarım biçimi desteklenmiyor. Başka bir biçim seçerek yeniden dene.</string>
     <string name="exporting_study_records">Çalışma kayıtları dışa aktarılıyor…</string>
     <string name="exporting_study_records_body">Tamamlandığında dışa aktarılan kayıt sayıları gösterilecek.</string>
@@ -177,7 +178,7 @@
     <string name="library_preferences_retry_accessibility">Kitaplık tercihlerini yeniden dene</string>
     <string name="library_preferences_load_error">Kitaplık tercihleri okunamadı.</string>
     <string name="library_preferences_save_error">Görünüm ve sıralama kaydedilemedi. Bu seçim yalnız bu oturumda geçerli.</string>
-    <string name="organize_book">Kitaplığı düzenle</string>
+    <string name="organize_book">Durum, raf ve etiketler</string>
     <string name="organization_reading_status">Okuma durumu</string>
     <string name="reading_status_unset">Belirlenmedi</string>
     <string name="reading_status_to_read">Okunacak</string>
@@ -250,7 +251,7 @@
     <string name="discovery_limit_time">Tarama süresi sınırına ulaşıldı. Bu liste klasörün tamamını kapsamaz.</string>
     <string name="library_notes_title">Bütün notlar</string>
     <string name="library_notes_back">Kitaplığa dön</string>
-    <string name="library_notes_help">Kayıtlı notlarında, kitap başlığı ve yazarda ara. Kitabı aç, son okuma konumundan devam eder. Kitap ve PDF sayfa notlarını Notlar’dan, seçili EPUB metnine bağlı notları Vurgular ve notlar’dan düzenleyebilir veya silebilirsin.</string>
+    <string name="library_notes_help">Notlarında, kitap adında ve yazarda ara. Bir nota dokunursan kitap o yerden açılır.</string>
     <string name="library_notes_search">Not, kitap veya yazarda ara</string>
     <string name="library_notes_loading">Notlar aranıyor…</string>
     <string name="library_notes_load_failed">Notlar yüklenemedi. Yeniden deneyebilirsin.</string>
@@ -273,7 +274,7 @@
     <string name="library_notes_source_quote">Kaynak metin</string>
     <string name="library_notes_startup_failed">Yarım kalan geri yükleme kurtarılamadı. Verilerini korumak için notlar açılmadı.</string>
     <string name="reader_orientation_title">Ekran yönü</string>
-    <string name="reader_orientation_help">Otomatik, cihazın normal yön davranışını izler. Dikey veya yatay seçimi Kaydet sonrası EPUB, PDF, TXT, CBZ/CBR, FB2 ve DOCX okurken kullanılır. Android 16 büyük ekranlarda ve bazı çoklu pencere durumlarında yön isteğini sistem sınırlayabilir.</string>
+    <string name="reader_orientation_help">Otomatik seçeneği telefonun döndürme ayarını izler. Dikey veya yatay seçersen tüm kitaplar o yönde açılır.</string>
     <string name="reader_orientation_auto">Otomatik</string>
     <string name="reader_orientation_portrait">Dikey</string>
     <string name="reader_orientation_landscape">Yatay</string>
@@ -286,7 +287,7 @@
     <string name="reader_orientation_cancel">Vazgeç</string>
     <string name="reader_orientation_apply_failed">Kayıtlı ekran yönü uygulanamadı.</string>
     <string name="reader_orientation_apply_retry">Ekran yönünü yeniden dene</string>
-    <string name="annotation_create_title">Seçime vurgu ve not ekle</string>
+    <string name="annotation_create_title">Vurgula ve not ekle</string>
     <string name="annotation_edit_title">Vurguyu ve notu düzenle</string>
     <string name="annotation_help">Renk ve isteğe bağlı not seçimin tamamına birlikte kaydedilir. Boyama yalnız kaynak metnin kesin eşleştiği, desteklenen WebView’da gösterilir. Kitap dosyası değişmez.</string>
     <string name="annotation_no_color">Vurgu yok</string>
@@ -302,7 +303,7 @@
     <string name="annotation_save">Kaydet</string>
     <string name="annotation_saving">Kaydediliyor…</string>
     <string name="annotation_cancel">Vazgeç</string>
-    <string name="annotation_action">Vurgu ve bağlı not ekle</string>
+    <string name="annotation_action">Vurgula</string>
     <string name="annotation_anchor_unavailable">Bu seçim için vurgu yapılacak kaynak aralığı doğrulanamadı. Kopyalayabilir veya genel kitap notu olarak kaydedebilirsin.</string>
     <string name="annotations_title">Vurgular ve notlar</string>
     <string name="annotations_list_help">Renkli vurgular, metne bağlı notlar ve eski düz pasajların bu kitapta korunur. Bölümünü aç, bölümün başına gider; kesin metin boyaması desteklenen WebView ve kaynak eşleşmesine bağlıdır.</string>
@@ -325,6 +326,7 @@
     <string name="fixed_page_position_percent">Sayfa konumu: %%%1$d</string>
     <string name="cbz_page_position_description">Çizgi romandaki sayfa konumu yüzde %1$d</string>
     <string name="pdf_page_position_description">PDF sayfa konumu yüzde %1$d</string>
+    <string name="epub_book_position_description">Kitaptaki yaklaşık konum yüzde %1$d</string>
     <string name="cbz_spread_retry">Kitap görünümünü yeniden dene</string>
     <string name="cbz_spread_loading">Kitabın sayfa görünümü yükleniyor…</string>
     <string name="cbz_spread_saving">Kitabın sayfa görünümü kaydediliyor…</string>
@@ -334,7 +336,7 @@
     <string name="cbz_spread_apply_failed">Kaydedilmiş sayfa görünümü okuyucuya uygulanamadı. Yeniden deneyebilirsin.</string>
     <string name="pdf_page_links_title">Sayfa bağlantıları</string>
     <string name="pdf_page_links_heading">Sayfa %1$d bağlantıları</string>
-    <string name="pdf_page_links_scope">Bu sayfada cihazın okuyabildiği PDF iç bağlantıları. Bazı bağlantı türleri listelenmeyebilir. Dikey kaydırmada hedefin okuma noktasına, sayfalı görünümde hedef sayfaya gider. Bağlantının zoom ve yatay konum tercihi uygulanmaz.</string>
+    <string name="pdf_page_links_scope">Bu sayfadaki PDF iç bağlantıları. Birine dokunmak hedef sayfaya gider.</string>
     <string name="pdf_page_links_item">Bağlantı %1$d → Sayfa %2$d</string>
     <string name="pdf_page_links_loading">Bağlantılar okunuyor…</string>
     <string name="pdf_page_links_resolving">Hedef doğrulanıyor…</string>
@@ -346,9 +348,9 @@
     <string name="pdf_page_links_navigation_failed">Bağlantı açılamadı. Listeyi yeniden yükleyip tekrar dene.</string>
     <string name="pdf_page_links_retry">Bağlantıları yeniden yükle</string>
     <string name="library_notes_export_obsidian">Obsidian · Kitaplara ayrılmış Markdown ZIP</string>
-    <string name="library_notes_export_obsidian_help">Seçilen kapsamdaki kayıtlar, kitap başına Markdown ve bağlantılı bir dizin olarak kaydedilir. ZIP dosyasını Obsidian Importer içinde Markdown (.md, .zip) olarak içe aktarabilir veya açıp kasana kopyalayabilirsin. Bu bir anlık kopyadır; eşitleme yapmaz.</string>
+    <string name="library_notes_export_obsidian_help">Notlar kitap başına Markdown dosyaları olarak ZIP’e yazılır. Obsidian’da Importer ile içe aktar veya ZIP’i açıp kasana kopyala.</string>
     <string name="study_export_format_obsidian">Obsidian · Markdown ZIP</string>
-    <string name="study_export_format_obsidian_help">Bu kitabın kayıtlı notları, İngilizce/Türkçe kelimeleri ve EPUB/PDF alıntıları; metadata ve bağlantılı dizin içeren Markdown ZIP paketi olarak kaydedilir. Obsidian Importer içinde Markdown (.md, .zip) olarak içe aktarabilir veya açıp kasana kopyalayabilirsin. Eşitleme yapmaz.</string>
+    <string name="study_export_format_obsidian_help">Bu kitabın notları, kelimeleri ve alıntıları Markdown ZIP olarak kaydedilir. Obsidian’da Importer ile içe aktar veya ZIP’i açıp kasana kopyala.</string>
     <string name="pdf_navigation_choices">PDF okuma yönü</string>
     <string name="pdf_navigation_paged">Sayfalı</string>
     <string name="pdf_navigation_vertical">Dikey kaydırma</string>
@@ -369,4 +371,7 @@
     <string name="reading_time_hours">%1$d sa</string>
     <string name="reading_time_hours_minutes">%1$d sa %2$d dk</string>
     <string name="reading_time_session_note">Bu oturumun ilerleme hızına göre. Atlama, yeniden açma ve görünüm değişikliğinde yeniden ölçülür.</string>
+    <string name="widget_continue_description">Son okuduğun kitap, ilerlemesi ve tek dokunuşla devam</string>
+    <string name="widget_continue">Devam et</string>
+    <string name="widget_empty_title">Bir kitap aç; burada görünsün</string>
 </resources>

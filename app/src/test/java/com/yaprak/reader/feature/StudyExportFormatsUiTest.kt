@@ -1,5 +1,8 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -44,7 +47,7 @@ class StudyExportFormatsUiTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val book = Book("book", "İstanbul", "Deniz", BookFormat.EPUB, "book.epub", "book.epub", 1, "hash", 1)
     private val action = "Çalışma kayıtlarını dışa aktar"
-    private val card = "İstanbul, Deniz, EPUB, Belirlenmedi"
+    private val card = "İstanbul, Deniz, EPUB"
 
     @Test fun `each explicit format exports selected book without default or ordinary file export`() {
         val selections = mutableListOf<Pair<Book, StudyExportFormat>>()
@@ -120,7 +123,7 @@ class StudyExportFormatsUiTest {
         compose.onNodeWithText(compose.activity.getString(R.string.study_export_error_changed_book))
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("study-export-format-cancel").performClick()
-        openChooser("Güncel İstanbul, Deniz, EPUB, Belirlenmedi")
+        openChooser("Güncel İstanbul, Deniz, EPUB")
         compose.onNodeWithTag("study-export-format-PDF").performScrollTo().performClick()
         assertEquals(listOf(currentBook to StudyExportFormat.PDF), selections)
     }
@@ -199,7 +202,7 @@ class StudyExportFormatsUiTest {
 
     private fun openChooser(description: String = card) {
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasContentDescription(description))
-        compose.onNodeWithContentDescription(description).performClick()
+        compose.onNodeWithContentDescription("${description.substringBefore(',')} ayrıntıları").performClick()
         compose.onNodeWithText(action).performScrollTo().assertIsEnabled().performClick()
         compose.onNodeWithText("Aktarım biçimini seç").assertExists()
     }

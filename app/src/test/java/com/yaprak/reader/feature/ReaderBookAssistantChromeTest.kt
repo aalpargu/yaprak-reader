@@ -44,22 +44,22 @@ class ReaderBookAssistantChromeTest {
         val label=compose.activity.getString(R.string.reader_book_assistant)
         compose.setContent { YaprakTheme { ReaderChrome(state,visible,saveFailed,loadFailed,{},{},{},{},{},{},{},
             onBookAssistant=callback) } }
-        compose.onNodeWithText(label).assertDoesNotExist()
+        compose.readerToolNodeWithText(label).assertDoesNotExist()
         compose.runOnIdle { callback={ events+="first" } }
-        val node=compose.onNodeWithText(label,useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(label).performScrollTo(); val node=compose.onNodeWithText(label,useUnmergedTree=true).assertIsDisplayed()
         val layouts=mutableListOf<TextLayoutResult>()
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout=layouts.single();assertEquals(2f,layout.layoutInput.density.fontScale);assertFalse(layout.hasVisualOverflow)
-        fun action()=compose.onNodeWithText(label).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        fun action()=compose.readerToolNodeWithText(label).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         val old=action();compose.runOnIdle { callback={ events+="next" } };compose.runOnIdle { old() };assertTrue(events.isEmpty())
-        compose.onNodeWithText(label).performScrollTo().performClick();assertEquals(listOf("next"),events)
+        compose.readerToolNodeWithText(label).performScrollTo().performClick();compose.waitForIdle();assertEquals(listOf("next"),events)
         val priorBook=action();compose.runOnIdle { state=ready(BookFormat.EPUB) };compose.runOnIdle { priorBook() }
         assertEquals(1,events.size)
         val shown=action();compose.runOnIdle { visible=false };compose.runOnIdle { shown() };assertEquals(1,events.size)
-        compose.onNodeWithText(label).assertDoesNotExist()
-        compose.runOnIdle { visible=true;state=ready(BookFormat.CBZ) };compose.onNodeWithText(label).assertDoesNotExist()
-        compose.runOnIdle { state=ready(BookFormat.DOCX);loadFailed=true };compose.onNodeWithText(label).assertDoesNotExist()
-        compose.runOnIdle { loadFailed=false;saveFailed=true };compose.onNodeWithText(label).assertDoesNotExist()
-        compose.runOnIdle { saveFailed=false };compose.onNodeWithText(label).assertExists()
+        compose.readerToolNodeWithText(label).assertDoesNotExist()
+        compose.runOnIdle { visible=true;state=ready(BookFormat.CBZ) };compose.readerToolNodeWithText(label).assertDoesNotExist()
+        compose.runOnIdle { state=ready(BookFormat.DOCX);loadFailed=true };compose.readerToolNodeWithText(label).assertDoesNotExist()
+        compose.runOnIdle { loadFailed=false;saveFailed=true };compose.readerToolNodeWithText(label).assertDoesNotExist()
+        compose.runOnIdle { saveFailed=false };compose.readerToolNodeWithText(label).assertExists()
     }
 }

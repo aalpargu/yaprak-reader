@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="review_title">Kelime tekrarları ve geçmiş</string>
-    <string name="review_help">Anlamı göster, sonra ne kadar kolay hatırladığını seç. Yalnız puanladığın kart kaydedilir. Basit tekrar takvimi 1, 3, 7, 14, 30, 60 ve 120 gün basamaklarını kullanır; Anki/FSRS algoritması değildir. Düzenlenen kelime yeni içerik olarak başlar. Kelimeyi veya kitabını silmek, ilgili tekrar geçmişini de siler; tam yedek geçmişi korur.</string>
+    <string name="review_help">Anlamı göster, sonra ne kadar kolay hatırladığını seç. Kolay hatırladığın kelimeler daha seyrek tekrar gelir.</string>
     <string name="review_back">Kelimelere dön</string>
     <string name="review_loading">Tekrarlar yükleniyor…</string>
     <string name="review_counts">Tekrar zamanı gelen: %1$d · Yeni içerik: %2$d · Toplam kelime: %3$d</string>
@@ -14,7 +14,7 @@
     <string name="review_easy">Kolay · iki üst basamak</string>
     <string name="review_new">Yeni veya düzenlenmiş içerik</string>
     <string name="review_due">Tekrar zamanı geldi</string>
-    <string name="review_scope">Bu oturumda gösterilebilen: %1$d / %2$d. En fazla 200 kart tutulur; her puanlamadan sonra kuyruk tüm kelimelerden yenilenir. Takvim cihaz saatini ve puanlama anındaki saat dilimini kullanır; bildirim göndermez.</string>
+    <string name="review_scope">Tekrar sırasındaki kelimeler: %1$d / %2$d</string>
     <string name="review_done">Şu an tekrar zamanı gelen kart yok.</string>
     <string name="review_saved">Kaydedildi. Sonraki tekrar: %1$s</string>
     <string name="review_history">Son tekrarlar: %1$d / %2$d</string>

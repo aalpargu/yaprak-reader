@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -61,10 +62,10 @@ class PdfAnnotationsDialogTest {
         var preview by mutableStateOf(SelectedTextPreview.Ready(PDF_TEST_TEXT,pdfPageIndex=3,pdfSourceAnchor=PDF_TEST_ANCHOR)); var annotations=0
         compose.setContent { YaprakTheme { SelectedTextDialog(preview,{}, {},onAnnotate={ annotations++ },onTransferPassage={},
             assistantContent={ error("PDF cannot borrow EPUB AI sources") }) } }
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").performScrollTo().performClick(); assertEquals(1,annotations)
+        compose.onNodeWithText("Vurgula").performScrollTo().performClick(); assertEquals(1,annotations)
         compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
-        compose.runOnIdle { preview=preview.copy(pdfPageIndex=2) }; compose.onNodeWithText("Vurgu ve bağlı not ekle").assertDoesNotExist()
-        compose.runOnIdle { preview=preview.copy(pdfSourceAnchor=null) }; compose.onNodeWithText("Vurgu ve bağlı not ekle").assertDoesNotExist()
+        compose.runOnIdle { preview=preview.copy(pdfPageIndex=2) }; compose.onNodeWithText("Vurgula").assertDoesNotExist()
+        compose.runOnIdle { preview=preview.copy(pdfSourceAnchor=null) }; compose.onNodeWithText("Vurgula").assertDoesNotExist()
     }
     @Test @Config(qualifiers="w480dp-h320dp-land-mdpi") fun legacyAndroidRecordListKeepsItsCloseActionVisibleAndSourcePageReachableAtFontTwo() {
         fontTwo(); val request=PdfAnnotationsWindow("book","a".repeat(64),false); val repo=FakePdfAnnotationsRepository(listOf(pdfTestRecord())); var closed=0
@@ -90,6 +91,48 @@ class PdfAnnotationsDialogTest {
         compose.onNodeWithText("Kaydı aç").performScrollTo().assertIsDisplayed()
         screenshot("pdf-annotation-source-ready-font2")
         request.close()
+    }
+
+    @Test fun listRowCallbacksFromBeforeAQueryOrEditorCannotActOnTheReturningList() {
+        val saved=pdfTestRecord(); val window=PdfAnnotationsWindow("book","a".repeat(64),true)
+        val repo=FakePdfAnnotationsRepository(listOf(saved)); val copied=mutableListOf<String>()
+        compose.setContent { YaprakTheme { PdfAnnotationsRoute(window,repo,{ true },
+            { error("This case cannot navigate") },{}, { copied+=it }) } }
+        compose.onNodeWithText("Kopyala").performScrollTo().assertIsDisplayed()
+        val beforeQueryCopy=applicationClick(compose.onNodeWithText("Kopyala"))
+        val beforeQueryEdit=applicationClick(compose.onNodeWithTag("pdf-annotation-edit-${saved.id}"))
+        compose.onNodeWithTag("pdf-annotations-search").performScrollTo().performTextReplacement("note")
+        compose.onNodeWithTag("pdf-annotation-row-${saved.id}").assertExists()
+        compose.runOnIdle { beforeQueryCopy(); beforeQueryEdit() }
+        compose.onNodeWithTag("pdf-annotation-body").assertDoesNotExist()
+        assertTrue(copied.isEmpty())
+
+        compose.onNodeWithText("Kopyala").performScrollTo()
+        val beforeEditorCopy=applicationClick(compose.onNodeWithText("Kopyala"))
+        compose.onNodeWithTag("pdf-annotation-edit-${saved.id}").performScrollTo().performClick()
+        compose.onNodeWithTag("pdf-annotation-body").assertIsDisplayed()
+        compose.onNodeWithTag("pdf-annotations-body").assertDoesNotExist()
+        compose.onNodeWithTag("pdf-annotation-cancel").performClick()
+        compose.onNodeWithTag("pdf-annotations-body").assertIsDisplayed()
+        compose.runOnIdle { beforeEditorCopy() }
+        assertTrue(copied.isEmpty())
+        compose.onNodeWithText("Kopyala").performScrollTo().performClick()
+        assertEquals(listOf(saved.text+"\n\nBağlı not:\n"+saved.attachedNote),copied)
+        assertEquals(listOf(saved),repo.records.value)
+        assertEquals(0,repo.creates+repo.updates+repo.removes+repo.proofs)
+        compose.runOnIdle { window.close() }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun applicationClick(node: SemanticsNodeInteraction): () -> Unit {
+        // Pin the app callback, rather than Material's wrapper which reads a node's latest onClick.
+        val semantics=node.fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        check(semantics.javaClass.name=="androidx.compose.foundation.AbstractClickableNode\$applySemantics\$1")
+        val clickable=semantics.javaClass.getDeclaredField("this\$0").apply { isAccessible=true }.get(semantics)
+        val declaring = generateSequence(clickable.javaClass as Class<*>?) { it.superclass }
+            .first { it.name=="androidx.compose.foundation.AbstractClickableNode" }
+        return declaring.readerMethod("getOnClick")
+            .apply { isAccessible=true }.invoke(clickable) as () -> Unit
     }
 
     private fun request()=PdfAnnotationRequest("book","a".repeat(64),PDF_TEST_TEXT,PDF_TEST_ANCHOR)

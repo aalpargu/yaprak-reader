@@ -48,7 +48,7 @@ class ComicBookViewPreferencesChromeTest {
         compose.readerToolNodeWithText(value, useUnmergedTree = true).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single(); assertEquals(2f, layout.layoutInput.density.fontScale)
         assertFalse(layout.didOverflowWidth); assertFalse(layout.didOverflowHeight)
-        assertEquals(value.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
+        compose.waitForIdle(); assertEquals(value.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
     }
     private fun statusLayout(name: String) {
         compose.runOnUiThread { RuntimeEnvironment.setFontScale(2f) }; compose.activityRule.scenario.recreate()
@@ -73,7 +73,7 @@ class ComicBookViewPreferencesChromeTest {
                 file.parentFile!!.mkdirs(); file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
             finally { bitmap.recycle() }
         }
-        compose.readerToolNodeWithText(text(R.string.cbz_spread_retry)).performClick(); assertEquals(1, retries); assertEquals(0, writes)
+        compose.readerToolNodeWithText(text(R.string.cbz_spread_retry)).performClick(); compose.waitForIdle(); assertEquals(1, retries); assertEquals(0, writes)
     }
     @Test fun narrowDoubleTypeMakesBusyErrorsAndSavedBookScopeReadable() { statusLayout("comic-book-pref-narrow") }
     @Test @Config(qualifiers = "w640dp-h320dp-land-mdpi")
@@ -83,12 +83,12 @@ class ComicBookViewPreferencesChromeTest {
         compose.setContent { YaprakTheme { Chrome(reader, state, { writes++ }, { retries++ }) } }
         val old = compose.readerToolNodeWithText(text(R.string.cbz_spread_single)).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         val same = state; compose.runOnIdle { state = same.copy(status = ComicBookViewStatus.SAVING) }
-        compose.runOnIdle { state = same }; compose.runOnIdle { old() }; assertEquals(0, writes)
-        compose.readerToolNodeWithText(text(R.string.cbz_spread_single)).performScrollTo().performClick(); assertEquals(1, writes)
+        compose.runOnIdle { state = same }; compose.runOnIdle { old() }; compose.waitForIdle(); assertEquals(0, writes)
+        compose.readerToolNodeWithText(text(R.string.cbz_spread_single)).performScrollTo().performClick(); compose.waitForIdle(); assertEquals(1, writes)
         compose.runOnIdle { state = state.copy(status = ComicBookViewStatus.APPLY_FAILED) }
         val retry = compose.readerToolNodeWithText(text(R.string.cbz_spread_retry)).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { state = state.copy(owner = state.owner!!.copy(generation = 2), revision = 5) }
-        compose.runOnIdle { retry() }; assertEquals(0, retries)
-        compose.readerToolNodeWithText(text(R.string.cbz_spread_retry)).performScrollTo().performClick(); assertEquals(1, retries)
+        compose.runOnIdle { retry() }; compose.waitForIdle(); assertEquals(0, retries)
+        compose.readerToolNodeWithText(text(R.string.cbz_spread_retry)).performScrollTo().performClick(); compose.waitForIdle(); assertEquals(1, retries)
     }
 }

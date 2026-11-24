@@ -4,6 +4,8 @@ import android.os.SystemClock
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.performClick
 import androidx.room.Room
 import androidx.test.core.app.ActivityScenario
@@ -25,6 +27,8 @@ import com.yaprak.reader.formats.pdf.PdfPageDrawWitness
 import com.yaprak.reader.formats.pdf.PdfPosition
 import com.yaprak.reader.formats.pdf.PdfReaderFragment
 import com.yaprak.reader.formats.pdf.PdfResumePosition
+import com.yaprak.reader.formats.pdf.PdfRenderStatus
+import com.yaprak.reader.formats.pdf.PdfScrollViewport
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.MessageDigest
@@ -73,11 +77,11 @@ class PdfZoomResumeDeviceTest {
 
             lateinit var moved: PdfResumePosition
             ActivityScenario.launch<ReaderActivity>(ReaderActivity.intent(context, id)).use { scenario ->
-                diagnostic = { readerWindowDiagnostic(scenario) }
+                diagnostic = { readerWindowDiagnostic(scenario) + "; actualPaint=" + runCatching { frame(scenario) }.getOrNull() }
                 await("initial original point and width fit") {
                     frame(scenario)?.let { samePoint(seed, it.point) && it.geometry.zoom == 1f } == true
                 }
-                compose.onNodeWithText("Gizle").performClick()
+                compose.onNodeWithText("Gizle").assertDoesNotExist()
                 compose.awaitReaderWindowViewport(scenario, "pdf-continuous-pages", toolsHidden = true)
                 await("hidden tools and resized viewport keep the initial original point") {
                     frame(scenario)?.let { samePoint(seed, it.point) && it.geometry.zoom == 1f } == true
@@ -97,17 +101,40 @@ class PdfZoomResumeDeviceTest {
                 await("zoomed native point persisted by ReaderViewModel") {
                     samePoint(moved, PdfPosition.decodeResumeOrNull(container.reading.resume(id, hash), 3))
                 }
+                val beforeTools = requireNotNull(frame(scenario))
+                requireNotNull(beforeTools.scrollViewport)
                 ReaderWindowInput(compose, scenario, "pdf-continuous-pages").tap()
                 compose.awaitReaderWindowViewport(scenario, "pdf-continuous-pages", toolsHidden = false)
-                await("showing tools keeps the panned original point after viewport placement") {
-                    frame(scenario)?.let { samePoint(moved, it.point) && baseline(it.geometry) } == true
+                await("showing tools keeps expected original point $moved; beforePaint=$beforeTools") {
+                    frame(scenario)?.let { current ->
+                        samePoint(moved, current.point) && current.scrollViewport != null &&
+                            if (current.geometry.viewport == beforeTools.geometry.viewport &&
+                                current.geometry.source == beforeTools.geometry.source &&
+                                current.geometry.crop == beforeTools.geometry.crop && current.geometry.fit == beforeTools.geometry.fit &&
+                                current.geometry.pointNavigationRevision == beforeTools.geometry.pointNavigationRevision) {
+                                // A changed clipping area alone is not a reprojected page. Keep its exact camera.
+                                current.geometry.zoom == beforeTools.geometry.zoom && current.geometry.pan == beforeTools.geometry.pan
+                            } else {
+                                // Existing v2 resize behavior resets the transform while retaining original Y.
+                                baseline(current.geometry)
+                            }
+                    } == true
                 }
+                compose.onNodeWithText("İçerik").performClick()
                 compose.onNodeWithText("Yer imleri").performClick()
-                compose.onNodeWithText("Bu konumu kaydet").performClick()
+                compose.waitUntil(10_000) {
+                    runCatching {
+                        compose.onNodeWithText("Bu konumu kaydet").assertIsDisplayed().assertIsEnabled()
+                        true
+                    }.getOrDefault(false)
+                }
+                compose.onNodeWithText("Bu konumu kaydet").assertIsDisplayed().assertIsEnabled().performClick()
                 await("original-point bookmark from the actual reader") {
                     val bookmark = container.bookmarks.observe(id, hash).first().singleOrNull()
                     samePoint(moved, PdfPosition.decodeResumeOrNull(bookmark?.target?.location, 3))
                 }
+                compose.onNodeWithText("Kapat").performClick()
+                compose.onNodeWithText("Kitap içeriği").assertIsDisplayed()
                 compose.onNodeWithText("Kapat").performClick()
 
                 scenario.recreate()
@@ -160,7 +187,8 @@ class PdfZoomResumeDeviceTest {
         }
     }
 
-    private data class PaintedFrame(val point: PdfResumePosition, val geometry: PdfDrawGeometry)
+    private data class PaintedFrame(val point: PdfResumePosition, val geometry: PdfDrawGeometry,
+        val scrollViewport: PdfScrollViewport?)
 
     @Suppress("UNCHECKED_CAST")
     private fun frame(scenario: ActivityScenario<ReaderActivity>): PaintedFrame? {
@@ -179,7 +207,11 @@ class PdfZoomResumeDeviceTest {
             if (witness.paintedTicket == null) return@onActivity
             val geometry = PdfPageDrawWitness::class.java.getDeclaredField("geometry")
                 .apply { isAccessible = true }.get(witness) as? PdfDrawGeometry ?: return@onActivity
-            frame = PaintedFrame(point, geometry)
+            val status = PdfReaderFragment::class.java.getDeclaredField("status").apply { isAccessible = true }
+                .get(fragment) as PdfRenderStatus
+            val viewport = PdfRenderStatus::class.java.getDeclaredField("scrollViewport").apply { isAccessible = true }
+                .get(status) as? PdfScrollViewport
+            frame = PaintedFrame(point, geometry, viewport)
         }
         return frame
     }

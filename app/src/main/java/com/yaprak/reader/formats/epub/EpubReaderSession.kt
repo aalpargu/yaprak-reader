@@ -255,6 +255,11 @@ internal class EpubReaderSession(
                         fixedLayout = false)
                 }.collectLatest { send(it) }
             }.distinctUntilChanged().flowOn(Dispatchers.Main.immediate)
+            override val readAloud: com.yaprak.reader.reader.ReadAloudSource? =
+                if (opened.publication.metadata.presentation.layout == EpubLayout.FIXED) null
+                else EpubReadAloudSource(opened.publication, { navigator.currentLocator.value }) { locator ->
+                    navigationAllowed() && navigator.go(locator, animated = false)
+                }
             override val bookPositionNavigator = if (!bookPosition.available) null else object : BookPositionNavigator {
                 override suspend fun resolvePercent(percent: Int): ReadingLocation? {
                     if (!navigationAllowed()) return null
@@ -319,6 +324,8 @@ internal class EpubReaderSession(
                 override val contents = this@EpubReaderSession.contents.contents
                 override fun entryIdForResource(href: String): String? = if (currentSurface() && chapterLink(href) != null)
                     this@EpubReaderSession.contents.entryIdForResource(href) else null
+                override fun currentEntryId(): String? = if (!currentSurface()) null else
+                    this@EpubReaderSession.contents.currentEntryId(navigator.currentLocator.value.href.removeFragment().toString())
                 override fun goTo(entryId: String): Boolean {
                     if (!navigationAllowed()) return false
                     val link = this@EpubReaderSession.contents.destination(entryId) ?: return false

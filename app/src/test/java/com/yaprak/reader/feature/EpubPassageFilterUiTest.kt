@@ -46,7 +46,7 @@ class EpubPassageFilterUiTest {
         val opened = mutableListOf<String>()
         compose.setContent { YaprakTheme {
             EpubPassagesRoute(book, repository, {}, onCopy = { copied += it },
-                onOpenChapter = { opened += it.id; false })
+                onOpenChapter = { passage, _ -> opened += passage.id; false })
         } }
         search("leaf")
         revealTag("epub-passage-sort").assertIsDisplayed().performClick()

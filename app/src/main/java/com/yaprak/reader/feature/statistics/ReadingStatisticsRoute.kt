@@ -20,7 +20,8 @@ internal fun ReadingStatisticsRoute(model: ReadingStatisticsViewModel, onBack: (
 @Composable
 internal fun ReadingStatisticsRoute(model: ReadingStatisticsViewModel,
     goalModel: DailyReadingGoalViewModel?, onBack: () -> Unit,
-    completionModel: BookCompletionViewModel? = null, weeklyModel: WeeklyReadingGoalViewModel? = null) {
+    completionModel: BookCompletionViewModel? = null, weeklyModel: WeeklyReadingGoalViewModel? = null,
+    reminderModel: ReadingReminderViewModel? = null) {
     var historyOpen by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val state by model.state.collectAsStateWithLifecycle()
     val weeklyState = weeklyModel?.state?.collectAsStateWithLifecycle()?.value
@@ -79,7 +80,9 @@ internal fun ReadingStatisticsRoute(model: ReadingStatisticsViewModel,
         onGoalRetry = goalModel?.let { goal -> { revision: Long -> if (mayActOnGoal()) goal.retry(owner, revision) } },
         weeklyState = weeklyState,
         onWeeklyOpen = weeklyModel?.let { goal -> { revision: Long -> if (mayActOnWeekly()) goal.open(owner, revision) } },
-        onWeeklyRetry = weeklyModel?.let { goal -> { revision: Long -> if (mayActOnWeekly()) goal.retry(owner, revision) } })
+        onWeeklyRetry = weeklyModel?.let { goal -> { revision: Long -> if (mayActOnWeekly()) goal.retry(owner, revision) } },
+        reminder = reminderModel?.let { reminders -> { ReadingReminderPanel(reminders) {
+            com.yaprak.reader.data.reminder.ReadingReminderAlarms.canNotify(context) } } })
     if (historyOpen && completionModel != null) {
         val history by completionModel.state.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
         BookCompletionDialog(history, completionModel::retry, { historyOpen = false }, ::foreground)

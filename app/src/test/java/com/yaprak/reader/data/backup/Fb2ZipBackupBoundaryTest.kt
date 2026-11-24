@@ -30,8 +30,9 @@ class Fb2ZipBackupBoundaryTest {
         assertTrue(validBackupBookSignature(plain, "FB2", "book.fb2", 22))
         for (version in 1..22) assertFalse("Compressed original in version$version", validBackupBookSignature(compressed, "FB2", "book.fb2.zip", version))
         for (version in 1..21) assertFalse(validBackupBookSignature(plain, "FB2", "book.fb2", version))
-        assertTrue(validBackupBookSignature(compressed, "FB2", "book.fb2.zip", 26))
-        assertFalse(validBackupBookSignature(compressed, "FB2", "book.fb2.zip", 27))
+        assertTrue(validBackupBookSignature(compressed, "FB2", "book.fb2.zip", 27))
+        assertTrue(validBackupBookSignature(compressed, "FB2", "book.fb2.zip", 28))
+        assertFalse(validBackupBookSignature(compressed, "FB2", "book.fb2.zip", 29))
     }
 
     @Test fun actualNewManifestRetainsOriginalArchiveIdentityAndCurrentRoomSchema() {
@@ -42,12 +43,13 @@ class Fb2ZipBackupBoundaryTest {
         val payload = "{}".toByteArray()
         val encoded = BackupRecordsCodec.encodeManifest(records, payload, fb2ZipHash(payload))
         val json = JSONObject(encoded.toString(Charsets.UTF_8))
-        assertEquals(26, json.getInt("formatVersion")); assertEquals(26, json.getInt("databaseVersion"))
+        assertEquals(28, json.getInt("formatVersion")); assertEquals(28, json.getInt("databaseVersion"))
         val decoded = BackupRecordsCodec.decodeManifest(encoded)
-        assertEquals(listOf(book), decoded.books); assertEquals(26, decoded.formatVersion)
+        assertEquals(listOf(book), decoded.books); assertEquals(28, decoded.formatVersion)
         assertEquals(fb2ZipHash(payload), decoded.recordsHash)
         // The old plain-FB2 manifest remains a supported metadata shape; source admission is separate.
-        json.put("formatVersion", 22)
+        // Formats 21-26 pair with database 26.
+        json.put("formatVersion", 22).put("databaseVersion", 26)
         assertEquals(22, BackupRecordsCodec.decodeManifest(json.toString().toByteArray()).formatVersion)
         json.put("formatVersion", 21)
         val failure = runCatching { BackupRecordsCodec.decodeManifest(json.toString().toByteArray()) }.exceptionOrNull()

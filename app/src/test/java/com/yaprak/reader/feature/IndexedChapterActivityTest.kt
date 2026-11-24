@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -532,15 +533,15 @@ class IndexedChapterActivityTest {
         }
     }
     private fun invoke(activity: ReaderActivity, method: String) {
-        activity.javaClass.getDeclaredMethod(method).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(method).apply { isAccessible = true }.invoke(activity)
     }
     private fun property(activity: ReaderActivity, getter: String): Any? =
-        activity.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(getter).apply { isAccessible = true }.invoke(activity)
     private fun retry(activity: ReaderActivity, expected: IndexedChapterState): Boolean =
-        activity.javaClass.getDeclaredMethod("retryIndexedChapter", IndexedChapterState::class.java)
+        activity.javaClass.readerMethod("retryIndexedChapter", IndexedChapterState::class.java)
             .apply { isAccessible = true }.invoke(activity, expected) as Boolean
     private fun flag(activity: ReaderActivity, setter: String, value: Boolean) {
-        activity.javaClass.getDeclaredMethod(setter, Boolean::class.javaPrimitiveType!!)
+        activity.javaClass.readerMethod(setter, Boolean::class.javaPrimitiveType!!)
             .apply { isAccessible = true }.invoke(activity, value)
     }
     private fun setSurface(activity: ReaderActivity, surface: ReaderSurface) {

@@ -271,13 +271,13 @@ class ReadingDurationPersistenceTest {
             }
             dbOpen(name).useDatabase { db ->
                 assertEquals(5000L, RoomReadingDurationRepository(db).observe().first().totalMillis)
-                assertEquals(26, db.openHelper.writableDatabase.query("PRAGMA user_version").use { assertTrue(it.moveToFirst()); it.getInt(0) })
+                assertEquals(28, db.openHelper.writableDatabase.query("PRAGMA user_version").use { assertTrue(it.moveToFirst()); it.getInt(0) })
             }
         } finally { context.deleteDatabase(name) }
     }
 
     private fun dbOpen(name: String, migrate: Boolean = false): LibraryDatabase = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-        .apply { if (migrate) addMigrations(LibraryDatabase.MIGRATION_15_16, LibraryDatabase.MIGRATION_16_17, LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26) }.build()
+        .apply { if (migrate) addMigrations(LibraryDatabase.MIGRATION_15_16, LibraryDatabase.MIGRATION_16_17, LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28) }.build()
     private fun rows(cursor: Cursor): List<List<String?>> = cursor.use { buildList {
         while (cursor.moveToNext()) add((0 until cursor.columnCount).map { if (cursor.isNull(it)) null else cursor.getString(it) })
     } }

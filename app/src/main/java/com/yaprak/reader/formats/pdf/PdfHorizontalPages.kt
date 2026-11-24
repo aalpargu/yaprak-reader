@@ -38,7 +38,7 @@ internal fun PdfHorizontalPages(renderPage: suspend (Int, Int) -> Bitmap,
     nightMode: Boolean, fitRequest: PdfFitRequest, cropRequest: PdfCropRequest,
     allowed: () -> Boolean, onPrimaryChanged: () -> Unit,
     onTextSelection: ((Int, PdfTextPoint, PdfTextPoint) -> Unit)?,
-    annotationPaint: PdfAnnotationPaintState?, drawProofHost: PdfDrawProofView?, onReaderTap: ((ReaderTap) -> Boolean)?) {
+    annotationPaint: PdfAnnotationPaintState?, drawProofHost: PdfDrawProofView?, onReaderTap: ((ReaderTap) -> Boolean)?, selectionController: PdfTextSelectionSource? = null) {
     val command by status.scrollNavigation.collectAsState()
     val list = rememberLazyListState(initialFirstVisibleItemIndex = command.pageIndex)
     val failedItems by status.failedScrollItems.collectAsState()
@@ -70,7 +70,11 @@ internal fun PdfHorizontalPages(renderPage: suspend (Int, Int) -> Bitmap,
             status.scrollNavigation.value != command) return@LaunchedEffect
         // A viewport change can start this effect inside BoxWithConstraints' measure.
         // Request the next layout instead of forcing a nested synchronous remeasure.
-        list.requestScrollToItem(command.pageIndex)
+        // Once the list already has this viewport no remeasure is pending; scroll directly so a
+        // zoomed page (which triggers no remeasure) cannot leave the command unsettled.
+        val measured = list.layoutInfo.viewportSize
+        if (measured.width == viewportWidth && measured.height == viewportHeight) list.scrollToItem(command.pageIndex)
+        else list.requestScrollToItem(command.pageIndex)
         snapshotFlow {
             val layout = list.layoutInfo
             !list.isScrollInProgress && layout.viewportSize.width == viewportWidth &&
@@ -102,7 +106,8 @@ internal fun PdfHorizontalPages(renderPage: suspend (Int, Int) -> Bitmap,
         }
     }
     // Document order stays left-to-right even when the application's locale is RTL.
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr,
+        com.yaprak.reader.formats.pdf.ink.LocalPdfInkScroll provides { delta -> list.dispatchRawDelta(-delta.x) }) {
         LazyRow(state = list, userScrollEnabled = allowed(), horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxSize().nestedScroll(gate).testTag("pdf-horizontal-pages")
                 .onGloballyPositioned {
@@ -191,7 +196,8 @@ internal fun PdfHorizontalPages(renderPage: suspend (Int, Int) -> Bitmap,
                                 { rendered, ticket -> status.finishRender(rendered, ticket); drawProofHost?.invalidate() },
                                 nightMode = nightMode, onRenderFailed = status::failRender,
                                 fitRequest = fitRequest, cropRequest = cropRequest, applySystemBarsPadding = false,
-                                onTextSelection = onTextSelection,
+                                onTextSelection = onTextSelection, selectionController = selectionController, onSelectionPage = { status.adoptScrollPrimary(it) },
+                        awaitSelectionPage = { page -> kotlinx.coroutines.withTimeoutOrNull(1_500) { status.drawnPage.first { it == page } } },
                                 verifiedAnnotations = (annotationPaint as? PdfAnnotationPaintState.Ready)?.annotations.orEmpty(),
                                 drawWitness = witness, parentScrolls = true, pointNavigationRevision = command.pointRevision(index),
                                 onContentTap = { point, childViewport ->

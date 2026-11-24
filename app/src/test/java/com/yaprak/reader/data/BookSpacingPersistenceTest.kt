@@ -124,9 +124,9 @@ class BookSpacingPersistenceTest {
         try {
             old(name)
             Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-                .addMigrations(LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build().useDatabase { db ->
+                .addMigrations(LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build().useDatabase { db ->
                     val sql = db.openHelper.writableDatabase
-                    assertEquals(26, sql.version)
+                    assertEquals(28, sql.version)
                     assertEquals(book, RoomLibraryRepository(db.books()).findById(book.id))
                     assertEquals("saved", RoomReadingStateRepository(db).resume(book.id, book.sha256)!!.locatorJson)
                     assertEquals("Exact note", sql.compileStatement("SELECT text FROM book_notes").simpleQueryForString())

@@ -19,12 +19,14 @@ internal fun readingMonth(state: ReadingStatisticsState, requested: YearMonth): 
     val latest = maxOf(last, today)
     val month = requested.coerceIn(earliest, latest)
     val prefix = "$month-"
-    val saved = snapshot.days.filter { it.localDate.startsWith(prefix) }.associate { it.localDate to it.elapsedMillis }
+    val monthDays = snapshot.days.filter { it.localDate.startsWith(prefix) }
+    val saved = monthDays.associate { it.localDate to it.elapsedMillis }
+    val pages = monthDays.associate { it.localDate to it.pages }
     val leading = month.atDay(1).dayOfWeek.value - 1
     val cells = MutableList<ReadingCalendarDay?>(leading) { null }
     (1..month.lengthOfMonth()).forEach { number ->
         val day = month.atDay(number)
-        cells += ReadingCalendarDay(day, saved[day.toString()])
+        cells += ReadingCalendarDay(day, saved[day.toString()], pages[day.toString()])
     }
     while (cells.size % 7 != 0) cells += null
     return ReadingMonth(month, earliest, latest, cells.chunked(7))

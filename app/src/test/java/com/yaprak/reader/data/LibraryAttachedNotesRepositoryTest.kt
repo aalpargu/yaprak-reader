@@ -43,9 +43,13 @@ class LibraryAttachedNotesRepositoryTest {
             db.epubPassages().add(passage("color-only", null))
             val repo = RoomLibraryNotesRepository(db)
             val rows = repo.observe("").first()
-            assertEquals(2, rows.totalCount)
-            assertEquals(2, rows.entries.map { it.identity }.distinct().size)
-            val attached = rows.entries.single { it.source == LibraryNoteSource.EPUB_PASSAGE }
+            // A color-only highlight is listed too, as a highlight whose text is its quote.
+            assertEquals(3, rows.totalCount)
+            assertEquals(3, rows.entries.map { it.identity }.distinct().size)
+            val highlight = rows.entries.single { it.highlightOnly }
+            assertEquals("color-only", highlight.id)
+            assertEquals("Source quote", highlight.text)
+            val attached = rows.entries.single { it.source == LibraryNoteSource.EPUB_PASSAGE && !it.highlightOnly }
             assertEquals("  IŞIK 🌿\nİkinci satır  ", attached.text)
             assertEquals("Source quote", attached.sourceText)
             assertEquals(7L, attached.sourceRevision)
@@ -54,7 +58,7 @@ class LibraryAttachedNotesRepositoryTest {
             assertEquals(attached, repo.find(book.id, book.sha256, "same", LibraryNoteSource.EPUB_PASSAGE))
             assertEquals("Ordinary note", repo.find(book.id, book.sha256, "same")!!.text)
             assertEquals(listOf(attached), repo.observe("ışık istanbul çağrı").first().entries)
-            assertEquals(listOf(attached), repo.observe("Source quote").first().entries)
+            assertEquals(listOf(attached), repo.observe("Source quote").first().entries.filterNot { it.highlightOnly })
             assertEquals(listOf(attached), repo.observe("quote ışık çağrı").first().entries)
         }
     }
@@ -96,7 +100,8 @@ class LibraryAttachedNotesRepositoryTest {
                 assertEquals(original.copy(text = "Yeni 🌿", sourceRevision = 8), updated)
                 assertEquals(updated, repo.find(book.id, book.sha256, "live", LibraryNoteSource.EPUB_PASSAGE))
                 db.withTransaction { db.openHelper.writableDatabase.execSQL("UPDATE epub_passages SET attachedNote = NULL WHERE id = 'live'") }
-                next { it.totalCount == 0 }
+                // Clearing the note keeps the highlight in the list as a plain highlight.
+                next { it.entries.singleOrNull()?.highlightOnly == true }
                 db.withTransaction { db.openHelper.writableDatabase.execSQL("UPDATE epub_passages SET attachedNote = 'Geri gelen not' WHERE id = 'live'") }
                 next { it.totalCount == 1 }
                 db.withTransaction { db.openHelper.writableDatabase.execSQL("UPDATE books SET sha256 = ? WHERE id = ?", arrayOf("c".repeat(64), book.id)) }

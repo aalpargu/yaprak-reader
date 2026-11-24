@@ -146,8 +146,8 @@ class LibraryDiscoveryUiTest {
             {}, {}, {}, "", {}, discoveryState = DiscoveryState.Choosing("picker"),
             onDiscover = if (available) ({}) else null) } }
         compose.onNodeWithText(text(R.string.add_book)).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText(text(R.string.discovery_open_folder)).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText(text(R.string.discovery_selecting)).performScrollTo().assertIsDisplayed()
+        compose.libraryToolNodeWithText(text(R.string.discovery_open_folder)).performScrollTo().assertIsNotEnabled()
+        compose.libraryToolNodeWithText(text(R.string.discovery_selecting)).performScrollTo().assertIsDisplayed()
         compose.runOnIdle { available = false }
         compose.onNodeWithText(text(R.string.discovery_open_folder)).assertDoesNotExist()
     }

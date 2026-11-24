@@ -14,7 +14,8 @@ class PdfReaderLoader(context: Context, private val library: LibraryRepository, 
     private val annotations: com.yaprak.reader.domain.pdfannotations.PdfAnnotationRepository? = null,
     private val ocrRecognizer: PdfOcrBitmapRecognizer? = null,
     private val fileMutex: kotlinx.coroutines.sync.Mutex = kotlinx.coroutines.sync.Mutex(),
-    private val validateOcrBook: suspend (com.yaprak.reader.domain.library.Book) -> Unit = {}) : ReaderLoader {
+    private val validateOcrBook: suspend (com.yaprak.reader.domain.library.Book) -> Unit = {},
+    private val ink: com.yaprak.reader.domain.pdfink.PdfInkRepository? = null) : ReaderLoader {
     private val outlineReader = PdfOutlineReader(context.applicationContext)
     private val files = VerifiedBookFile(File(context.filesDir, "books"))
 
@@ -29,7 +30,7 @@ class PdfReaderLoader(context: Context, private val library: LibraryRepository, 
                     { stable -> DocumentPdfOcrSource(book, document, files, recognizer, stable, fileMutex, validateOcrBook) }
                 }
                 PdfReaderSession(book, document, reading.resume(book.id, book.sha256), annotations, ocrFactory,
-                    files, fileMutex, validateOcrBook, outlineReader)
+                    files, fileMutex, validateOcrBook, outlineReader, ink)
             }
         } catch (error: Throwable) {
             opened?.close()

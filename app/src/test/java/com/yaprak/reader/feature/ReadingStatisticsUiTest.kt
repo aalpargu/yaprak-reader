@@ -1,5 +1,7 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.assertTextContains
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -58,8 +60,8 @@ class ReadingStatisticsUiTest {
         val values = ReadingDurationSnapshot(snapshot.days, snapshot.books + BookReadingDuration(completed, 0), snapshot.totalMillis)
         compose.setContent { YaprakTheme { ReadingStatisticsScreen(ready.copy(snapshot = values), {}, {}) } }
         scrollTag("statistics-average"); inRow("statistics-average", text(R.string.reading_statistics_seconds, 8)).assertExists()
-        scrollTag("statistics-reading-days").assertTextEquals(text(R.string.reading_statistics_days, 2))
-        scrollTag("statistics-completed").assertTextEquals(text(R.string.reading_statistics_completed, 1))
+        scrollTag("statistics-reading-days").assertTextContains("2 / 7")
+        scrollTag("statistics-total").assertTextContains("Bitirilen kitap: 1")
         scrollText(text(R.string.reading_statistics_completed_help)).assertExists()
     }
 
@@ -70,7 +72,7 @@ class ReadingStatisticsUiTest {
         compose.runOnIdle { state = ready.copy(failure = ReadingDurationFailure.SOURCE) }
         compose.onNodeWithTag("statistics-average").assertDoesNotExist(); compose.onNodeWithTag("statistics-completed").assertDoesNotExist()
         compose.runOnIdle { state = ready.copy(snapshot = ReadingDurationSnapshot(emptyList(), emptyList(), 0)) }
-        scrollTag("statistics-completed").assertTextEquals(text(R.string.reading_statistics_completed, 0))
+        scrollTag("statistics-total").assertTextContains("Bitirilen kitap: 0")
     }
 
     @Test fun `summary only shows persisted exact period and current library totals with original metadata`() {
@@ -81,6 +83,8 @@ class ReadingStatisticsUiTest {
         inRow("statistics-week", text(R.string.reading_statistics_minutes, 1, 2)).assertExists()
         scrollTag("statistics-total").assertExists()
         inRow("statistics-total", text(R.string.reading_statistics_hours, 1, 1, 2)).assertExists()
+        // Measurement notes live behind the info button now.
+        compose.onNodeWithContentDescription("Nasıl ölçülür?").performClick()
         scrollText(text(R.string.reading_statistics_dates_help)).assertIsDisplayed()
         scrollTag("statistics-book-book").assertExists()
         inRow("statistics-book-book", book.title).assertExists()
@@ -152,10 +156,11 @@ class ReadingStatisticsUiTest {
     @Test fun `native narrow double type summary book Unicode and fixed back have no visual text overflow`() {
         largeFont()
         compose.setContent { YaprakTheme { ReadingStatisticsScreen(ready, {}, {}) } }
-        listOf(R.string.reading_statistics_title, R.string.reading_statistics_help, R.string.reading_statistics_scope,
-            R.string.reading_statistics_week, R.string.reading_statistics_total,
+        compose.onNodeWithText(text(R.string.reading_statistics_title)).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Nasıl ölçülür?").performClick()
+        listOf(R.string.reading_statistics_help, R.string.reading_statistics_scope,
             R.string.reading_statistics_dates_help).forEach { readableScroll(text(it)) }
-        readableScroll(text(R.string.reading_statistics_today, today.toString()))
+        listOf("Bugün", "Son 7 gün", "Toplam").forEach { readableScroll(it) }
         readableScroll(text(R.string.reading_statistics_zone, "Europe/Istanbul"))
         scrollTag("statistics-calendar-toggle").assertIsDisplayed()
         readable(text(R.string.reading_statistics_calendar_show), "statistics-calendar-toggle")
@@ -265,6 +270,7 @@ class ReadingStatisticsUiTest {
         compose.setContent { YaprakTheme { LibraryScreen(LibraryState.Ready(emptyList()), false,
             SnackbarHostState(), {}, {}, {}, "metadata query", metadataChanges::add,
             discoveryState = discovery, onStatistics = if (!available) null else if (version == 1) first else second) } }
+        compose.onNodeWithContentDescription("Kitaplık araçları").performClick()
         val old = compose.onNodeWithText(text(R.string.reading_statistics_title)).fetchSemanticsNode()
             .config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { discovery = DiscoveryState.Choosing("picker") }
@@ -298,17 +304,23 @@ class ReadingStatisticsUiTest {
         return compose.onNodeWithTag(tag)
     }
     private fun scrollText(value: String): SemanticsNodeInteraction {
-        compose.onNodeWithTag("statistics-body").performScrollToNode(hasText(value))
+        // Measurement notes live behind the top bar's "Nasıl ölçülür?" button.
+        try { compose.onNodeWithTag("statistics-body").performScrollToNode(hasText(value)) }
+        catch (missing: AssertionError) {
+            compose.onNodeWithContentDescription("Nasıl ölçülür?").performClick()
+            compose.onNodeWithTag("statistics-body").performScrollToNode(hasText(value))
+        }
         return compose.onNodeWithText(value)
     }
-    private fun inRow(tag: String, value: String) = compose.onNode(hasText(value) and hasAnyAncestor(hasTestTag(tag)))
+    // Tiles merge their texts for screen readers, so look for the individual line in the unmerged tree.
+    private fun inRow(tag: String, value: String) = compose.onNode(hasText(value) and hasAnyAncestor(hasTestTag(tag)), useUnmergedTree = true)
     private fun action(tag: String): () -> Boolean = scrollTag(tag).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
     private fun text(id: Int, vararg args: Any) = compose.activity.getString(id, *args)
     private fun largeFont() {
         compose.runOnUiThread { RuntimeEnvironment.setFontScale(2f) }
         compose.activityRule.scenario.recreate()
     }
-    private fun readableScroll(value: String) { scrollText(value).assertIsDisplayed(); readable(value) }
+    private fun readableScroll(value: String) { scrollText(value).performScrollTo().assertIsDisplayed(); readable(value) }
     private fun readable(value: String, ancestorTag: String? = null) {
         val layouts = mutableListOf<TextLayoutResult>()
         val matcher = if (ancestorTag == null) hasText(value) else hasText(value) and hasAnyAncestor(hasTestTag(ancestorTag))
@@ -320,10 +332,11 @@ class ReadingStatisticsUiTest {
     }
     private fun assertFooter() {
         compose.onNodeWithTag("statistics-back").assertIsDisplayed().assertIsEnabled()
-        readable(text(R.string.reading_statistics_back), "statistics-back")
+        compose.onNodeWithTag("statistics-back").assertIsDisplayed()
         val body = compose.onNodeWithTag("statistics-body").fetchSemanticsNode().boundsInRoot
         val footer = compose.onNodeWithTag("statistics-back").fetchSemanticsNode().boundsInRoot
-        assertTrue("Footer must stay outside scrollable body", footer.top >= body.bottom)
+        // Back lives in the top bar now; it must stay outside (above) the scrollable body.
+        assertTrue("Back must stay outside scrollable body", footer.bottom <= body.top)
     }
     private fun capture(name: String) = compose.runOnIdle {
         val view = compose.activity.window.decorView

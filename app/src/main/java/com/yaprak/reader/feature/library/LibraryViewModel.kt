@@ -33,9 +33,13 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -47,7 +51,7 @@ sealed interface LibraryState {
     data object Loading : LibraryState
     data object Error : LibraryState
     data class Ready(val books: List<Book>, val totalCount: Int = books.size, val query: String = "",
-        val allBooks: List<Book> = books) : LibraryState
+        val allBooks: List<Book> = books, val progress: Map<String, Int> = emptyMap()) : LibraryState
 }
 data class ImportProgress(val completed: Int, val total: Int, val stopRequested: Boolean = false)
 data class ImportNotice(val id: Long, val results: List<ImportResult>, val skipped: Int, val stopped: Int = 0) {
@@ -105,13 +109,23 @@ class LibraryViewModel(private val repository: LibraryRepository, private val im
     private val coverEditor: BookCoverEditor? = null,
     private val discovery: BookDiscovery? = null,
     bookFolders: com.yaprak.reader.domain.library.BookFolderRepository? = null,
+    readingDuration: com.yaprak.reader.domain.statistics.ReadingDurationRepository? = null,
 ) : ViewModel() {
+    /** Saved reading time per current book (id + hash verified by the repository); empty when unavailable. */
+    val bookReadingMillis: StateFlow<Map<String, Long>> = (readingDuration?.observe()
+        ?.map { snapshot -> snapshot.books.filter { it.totalMillis > 0 }.associate { it.book.id to it.totalMillis } }
+        ?.catch { failure -> if (failure is CancellationException) throw failure; emit(emptyMap()) }
+        ?: flowOf(emptyMap()))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
     val coversAvailable: Boolean get() = coverLoader != null
     suspend fun loadCover(book: Book): Bitmap? = coverLoader?.load(book)
 
     private val refresh = MutableStateFlow(0)
     private val source = refresh.flatMapLatest {
-        repository.observeBooks().map<List<Book>, LibraryState> { LibraryState.Ready(it) }
+        combine(repository.observeBooks(), repository.observeProgress()
+            .catch { emit(emptyMap()) }.onStart { emit(emptyMap()) }) { books, progress ->
+            LibraryState.Ready(books, progress = progress) as LibraryState
+        }.distinctUntilChanged()
             .onStart { emit(LibraryState.Loading) }
             .catch { emit(LibraryState.Error) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, LibraryState.Loading)
@@ -260,6 +274,20 @@ class LibraryViewModel(private val repository: LibraryRepository, private val im
         startImport(listOf(uri))
     }
 
+    private var openAfterImport = false
+    private val _openBook = MutableStateFlow<String?>(null)
+    /** A book id the UI should open once, set after a document handed over by another app was added. */
+    val openBook = _openBook.asStateFlow()
+    fun consumeOpenBook(id: String) { if (_openBook.value == id) _openBook.value = null }
+
+    /** "Open with Yaprak" from another app: add the document, then open it when it is new. */
+    fun importOpenedDocument(uri: String): Boolean {
+        if (importBusy) return false
+        openAfterImport = true
+        startImport(listOf(uri))
+        return true
+    }
+
     /** Finish the current document normally, then leave the remaining selection unprocessed. */
     fun requestStopRemainingImports() {
         if (!_importing.value) return
@@ -298,7 +326,12 @@ class LibraryViewModel(private val repository: LibraryRepository, private val im
                 }
                 currentCoroutineContext().ensureActive()
                 _notice.value = ImportNotice(++noticeId, results, skipped, stopped = selected.size - results.size)
+                if (openAfterImport && results == listOf(ImportResult.Added)) {
+                    // ImportResult carries no id; the just-added book is the newest import.
+                    _openBook.value = repository.observeBooks().first().maxByOrNull { it.importedAt }?.id
+                }
             } finally {
+                openAfterImport = false
                 _importProgress.value = null
                 _importing.value = false
             }

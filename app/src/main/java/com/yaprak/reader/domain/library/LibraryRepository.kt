@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface LibraryRepository {
     fun observeBooks(): Flow<List<Book>>
+    /** Approximate reading progress (0–100) by book id, for display on library cards only. */
+    fun observeProgress(): Flow<Map<String, Int>> = kotlinx.coroutines.flow.flowOf(emptyMap())
     suspend fun findById(id: String): Book?
     suspend fun findByHash(sha256: String): Book?
     suspend fun storedFileNames(): Set<String>

@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.*
@@ -42,8 +43,8 @@ class EpubAnnotationUiTest {
             EpubAnnotationDialog("session", "Leaf", color, note, false, true, revision,
                 onColor = { color = it; revision++ }, onNote = { note = it; revision++ }, onSave = { saves++ }, onDismiss = {})
         } }
-        compose.onNodeWithText("Sarı").performScrollTo().assertIsSelected()
-        compose.onNodeWithText("Pembe").performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithContentDescription("Sarı").performScrollTo().assertIsSelected()
+        compose.onNodeWithContentDescription("Pembe").performScrollTo().performClick().assertIsSelected()
         assertEquals(EpubHighlightColor.PINK, color); assertEquals("  Çığ\n😀  ", note); assertEquals(0, saves)
         compose.onNodeWithTag("epub-annotation-save").assertIsDisplayed().performClick()
         assertEquals(1, saves)
@@ -57,7 +58,7 @@ class EpubAnnotationUiTest {
             EpubAnnotationDialog("edit", "Leaf", color, note, false, true, revision, editing = true,
                 onColor = { color = it; revision++ }, onNote = { note = it; revision++ }, onSave = {}, onDismiss = {})
         } }
-        compose.onNodeWithText("Vurgu yok").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Vurgu yok").performScrollTo().performClick()
         assertNull(color); assertEquals("attached", note)
         compose.onNodeWithText("Bağlı notu temizle").performScrollTo().performClick()
         assertEquals("", note); assertNull(color)
@@ -74,8 +75,8 @@ class EpubAnnotationUiTest {
         } }
         val save = click("Kaydet")
         val dismiss = click("Vazgeç")
-        compose.onNodeWithText("Yeşil").performScrollTo()
-        val edit = click("Yeşil")
+        compose.onNodeWithContentDescription("Yeşil").performScrollTo()
+        val edit = compose.onNodeWithContentDescription("Yeşil").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { session = "new"; revision++ }
         compose.runOnIdle { edit(); save(); dismiss() }
         assertEquals(0, edits); assertEquals(0, saves); assertEquals(0, dismisses)
@@ -119,7 +120,7 @@ class EpubAnnotationUiTest {
         compose.runOnIdle { oldSave() }; assertEquals(0, saves)
         compose.runOnIdle { busy = false; changed = true; revision++ }
         compose.onNodeWithTag("epub-annotation-save").assertIsNotEnabled()
-        compose.onNodeWithText("Sarı").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Sarı").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("epub-annotation-cancel").assertIsEnabled().performClick()
         assertEquals(1, dismisses)
     }
@@ -157,21 +158,22 @@ class EpubAnnotationUiTest {
         var annotations = 0
         compose.setContent { YaprakTheme { SelectedTextDialog(preview, {}, {},
             onAnnotate = { annotations++ }, showAnnotationHint = true) } }
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").performScrollTo()
-        val old = click("Vurgu ve bağlı not ekle")
+        compose.onNodeWithText("Vurgula").performScrollTo()
+        val old = click("Vurgula")
         compose.runOnIdle { preview = SelectedTextPreview.Ready("Leaf", sourceAnchor = anchor, sessionId = "new") }
         compose.runOnIdle { old() }; assertEquals(0, annotations)
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").performScrollTo().performClick()
+        compose.onNodeWithText("Vurgula").performScrollTo().performClick()
         assertEquals(1, annotations)
         compose.runOnIdle { preview = SelectedTextPreview.Ready("Leaf", sourceAnchor = anchor.copy(end = 5)) }
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").assertDoesNotExist()
+        compose.onNodeWithText("Vurgula").assertDoesNotExist()
         compose.onNodeWithText(compose.activity.getString(com.yaprak.reader.R.string.annotation_anchor_unavailable)).assertExists()
     }
 
     @Test fun `narrow form with double font scale keeps all choices and fixed actions readable`() {
         largeFont(); showLongForm()
+        // Colors are swatches now: each stays reachable and labelled for screen readers.
         listOf("Vurgu yok", "Sarı", "Yeşil", "Mavi", "Pembe").forEach {
-            compose.onNodeWithText(it).performScrollTo().assertIsDisplayed(); readable(it)
+            compose.onNodeWithContentDescription(it).performScrollTo().assertIsDisplayed()
         }
         listOf("Vazgeç", "Kaydet").forEach { compose.onNodeWithText(it).assertIsDisplayed(); readable(it) }
     }
@@ -179,7 +181,7 @@ class EpubAnnotationUiTest {
     @Test @Config(qualifiers = "w640dp-h320dp-land-mdpi")
     fun `short landscape with double font scale keeps body scrolling and footer fully visible`() {
         largeFont(); showLongForm()
-        compose.onNodeWithText("Pembe").performScrollTo().assertIsDisplayed(); readable("Pembe")
+        compose.onNodeWithContentDescription("Pembe").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("epub-annotation-note").performScrollTo().assertIsDisplayed()
         listOf("Vazgeç", "Kaydet").forEach { compose.onNodeWithText(it).assertIsDisplayed(); readable(it) }
     }
@@ -216,7 +218,7 @@ class EpubAnnotationUiTest {
             override suspend fun remove(bookId: String, contentSha256: String, id: String) = Unit
         }
         val book = Book("book", "Book", null, BookFormat.EPUB, "book.epub", "book.epub", 1, "hash", 1)
-        compose.setContent { YaprakTheme { EpubPassagesRoute(book, repository, { closes++ }, onOpenChapter = { result.await() }) } }
+        compose.setContent { YaprakTheme { EpubPassagesRoute(book, repository, { closes++ }, onOpenChapter = { _, complete -> result.await() && complete() }) } }
         compose.onNodeWithTag("epub-passages-list").performScrollToNode(hasContentDescription("1. pasaj: Leaf, bölümünü aç"))
         compose.onNodeWithContentDescription("1. pasaj: Leaf, bölümünü aç").performClick()
         compose.onNodeWithText("Kapat").assertIsNotEnabled()

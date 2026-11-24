@@ -84,7 +84,7 @@ class DictionaryPanelUiTest {
         assertEquals(layout.layoutInput.text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
     }
     private fun assertFooter() {
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed(); compose.onNodeWithText("Kapat").assertIsDisplayed()
+        compose.onNodeWithText("Kopyala").assertIsDisplayed(); compose.onNodeWithText("Kapat").assertIsDisplayed()
         val body = compose.onNodeWithTag("selected-text-body").fetchSemanticsNode().boundsInRoot
         assertTrue(compose.onNodeWithText("Kapat").fetchSemanticsNode().boundsInRoot.top >= body.bottom)
     }

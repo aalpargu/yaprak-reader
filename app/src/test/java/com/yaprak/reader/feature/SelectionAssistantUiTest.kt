@@ -88,7 +88,7 @@ class SelectionAssistantUiTest {
             R.string.selected_ai_simplify, R.string.assistant_question, R.string.assistant_endpoint,
             R.string.assistant_token, R.string.selected_ai_send_help, R.string.selected_ai_prepare,
             R.string.assistant_send, R.string.selected_ai_source_error, R.string.selected_ai_close)) readable(compose.activity.getString(id))
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed()
+        compose.onNodeWithText("Kopyala").assertIsDisplayed()
         compose.onNodeWithText("Kapat").assertIsDisplayed()
         val body = compose.onNodeWithTag("selected-text-body").fetchSemanticsNode().boundsInRoot
         assertTrue(compose.onNodeWithText("Kapat").fetchSemanticsNode().boundsInRoot.top >= body.bottom)

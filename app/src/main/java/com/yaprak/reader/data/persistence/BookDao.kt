@@ -21,8 +21,17 @@ data class BookWithOrganization(
     @Embedded(prefix = "cover_") val customCover: BookCoverEntity?,
 )
 
+/** Display-only progress inputs; never used as a navigation target. */
+data class BookProgressRow(val bookId: String, val format: String, val pageCount: Int?, val locatorJson: String)
+
 @Dao
 interface BookDao {
+    @Query("""SELECT books.id AS bookId, books.format AS format, books.pageCount AS pageCount,
+            reading_progress.locatorJson AS locatorJson
+        FROM books JOIN reading_progress
+            ON reading_progress.bookId = books.id AND reading_progress.contentSha256 = books.sha256""")
+    fun observeProgress(): Flow<List<BookProgressRow>>
+
     @Query("""SELECT books.*, reading_progress.updatedAt AS lastReadAt,
             book_organizations.bookId AS organization_bookId,
             book_organizations.contentSha256 AS organization_contentSha256,

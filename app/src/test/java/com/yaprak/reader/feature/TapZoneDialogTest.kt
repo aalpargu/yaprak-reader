@@ -47,13 +47,13 @@ class TapZoneDialogTest {
         compose.onNodeWithText("En az bir bölge araçları göstermeli.").performScrollTo().assertIsDisplayed()
         readable("En az bir bölge araçları göstermeli.")
         compose.onNodeWithContentDescription("Sol bölge: Araçları göster").performScrollTo().performClick()
-        assertTrue(state.draft.valid); assertFalse(state.saved.enabled)
+        assertTrue(state.draft.valid); assertEquals(TapZoneSettings(), state.saved) // a draft never writes the saved mapping
         readable("Kaydet"); readable("Vazgeç")
         capture("tap-zones-assignments-font2")
         compose.onNodeWithText("Vazgeç").performClick()
         assertEquals(TapZoneSettings(), state.saved); assertEquals(0, saves)
         compose.runOnIdle { state = state.copy(open = true) }
-        compose.onNodeWithText("Özel dokunma bölgeleri").performScrollTo().performClick()
+        // Custom zones are on by default now; the switch stays as saved.
         compose.onNodeWithContentDescription("Sağ bölge: Önceki sayfa").performScrollTo().performClick()
         compose.onNodeWithText("Kaydet").performClick()
         assertEquals(1, saves); assertTrue(state.saved.enabled)

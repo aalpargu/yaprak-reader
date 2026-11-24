@@ -1,5 +1,7 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
@@ -58,17 +60,17 @@ class LibraryPreferencesUiTest {
 
         compose.onNodeWithText("Kitaplık tercihleri yükleniyor…").assertIsDisplayed()
         assertChoicesDisabled()
-        compose.onNodeWithText("Kitaplıkta ara").performScrollTo()
+        compose.librarySearchField().performScrollTo()
             .assertIsEnabled().performTextReplacement("Ardıç")
         assertEquals("Ardıç", query)
+        if (compose.onAllNodesWithContentDescription("Filtre: Tümü").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Filtre: EPUB").performScrollTo()
             .assertIsEnabled().performClick()
         assertEquals(LibraryFilter.EPUB, filter)
         compose.onNodeWithText("Kitap ekle", useUnmergedTree = true).assertIsEnabled().performClick()
         assertEquals(1, imports)
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi")
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB")
             .performScrollTo().performClick()
-        compose.onNodeWithText("Oku").assertIsEnabled().performClick()
         assertEquals(book.id, opened)
     }
 
@@ -92,9 +94,8 @@ class LibraryPreferencesUiTest {
         assertChoicesDisabled()
         compose.onNodeWithText("Kitap ekle", useUnmergedTree = true).assertIsEnabled().performClick()
         assertEquals(1, imports)
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi")
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB")
             .performScrollTo().performClick()
-        compose.onNodeWithText("Oku").assertIsEnabled().performClick()
         assertEquals(book.id, opened)
     }
 
@@ -114,8 +115,10 @@ class LibraryPreferencesUiTest {
             .assertIsDisplayed()
         compose.onNodeWithContentDescription("Kitaplık tercihlerini yeniden dene").performClick()
         assertEquals(1, retries)
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Liste").performScrollTo()
             .assertIsSelected().assertIsEnabled()
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Kapaklar").performClick()
         assertEquals(LibraryLayout.GRID, layout)
         compose.onNodeWithText("Sırala: Başlık A–Z").performScrollTo().assertIsEnabled().performClick()
@@ -139,31 +142,35 @@ class LibraryPreferencesUiTest {
                 layout = layout, onLayout = { layout = it }, coverLoader = loader,
                 preferenceStatus = status)
         } }
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi")
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB")
             .performScrollTo().assertIsDisplayed()
         compose.waitForIdle()
         compose.waitUntil(5_000) { covers.size == 2 }
         val requested = covers.toList()
 
         compose.runOnIdle { status = LibraryPreferencesStatus.Saving }
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Liste").performScrollTo().assertIsEnabled()
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Kapaklar").assertIsEnabled()
         compose.onNodeWithText("Sırala: Son eklenenler").performScrollTo().assertIsEnabled().performClick()
         compose.onNodeWithText("Başlık A–Z").performClick()
         assertEquals(LibrarySort.TITLE, sort)
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi")
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB")
             .performScrollTo().assertIsDisplayed()
         compose.waitForIdle()
         assertEquals(requested.sorted(), covers.toList().sorted())
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi").performClick()
-        compose.onNodeWithText("Oku").performClick()
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB").performClick()
         assertEquals(book.id, opened)
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Kapaklar").performScrollTo().performClick()
         assertEquals(LibraryLayout.GRID, layout)
     }
 
     private fun assertChoicesDisabled() {
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Kapaklar").performScrollTo().assertIsNotEnabled()
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Liste").assertIsNotEnabled()
         compose.onNodeWithText("Sırala: Son eklenenler").performScrollTo().assertIsNotEnabled()
     }

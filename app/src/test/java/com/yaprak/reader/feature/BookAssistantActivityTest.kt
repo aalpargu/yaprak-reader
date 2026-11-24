@@ -48,14 +48,21 @@ class BookAssistantActivityTest {
         fun waitFor(predicate: (BookAssistantState) -> Boolean) = compose.waitUntil(20_000) {
             compose.onAllNodesWithTag("assistant-list").fetchSemanticsNodes(); predicate(model().state.value)
         }
+        // Manual preview/send live under the one-step question's "Gelişmiş" section; open it once.
+        var advancedOpened = false
         fun scroll(tag: String): SemanticsNodeInteraction {
+            if (!advancedOpened) {
+                advancedOpened = true
+                compose.onNodeWithTag("assistant-list").performScrollToNode(hasTestTag("assistant-advanced"))
+                compose.onNodeWithTag("assistant-advanced").performClick()
+            }
             compose.onNodeWithTag("assistant-list").performScrollToNode(hasTestTag(tag)); return compose.onNodeWithTag(tag)
         }
         try {
             waitFor { it.canPrepare }; assertNull(model().state.value.sources)
             scroll("assistant-prepare").performClick(); waitFor { !it.busy && it.sources != null }
             assertTrue(model().state.value.sources!!.references.single().hit.text.contains("Güneş doğdu."))
-            scroll("assistant-question").performTextReplacement("Bu metinde ne oldu?")
+            scroll("assistant-ask-question").performTextReplacement("Bu metinde ne oldu?")
             scroll("assistant-send").performClick(); waitFor { it.failure == BookAnswerFailure.CONFIGURATION }
             assertNull(model().state.value.answer); assertNull(runBlocking { container.reading.resume(book.id, hash) })
             scenario.moveToState(Lifecycle.State.CREATED); assertFalse(model().state.value.active); assertNull(model().state.value.sources)
@@ -86,14 +93,21 @@ class BookAssistantActivityTest {
         fun waitFor(predicate: (BookAssistantState) -> Boolean) = compose.waitUntil(20_000) {
             compose.onAllNodesWithTag("assistant-list").fetchSemanticsNodes(); predicate(model().state.value)
         }
+        // Manual preview/send live under the one-step question's "Gelişmiş" section; open it once.
+        var advancedOpened = false
         fun scroll(tag: String): SemanticsNodeInteraction {
+            if (!advancedOpened) {
+                advancedOpened = true
+                compose.onNodeWithTag("assistant-list").performScrollToNode(hasTestTag("assistant-advanced"))
+                compose.onNodeWithTag("assistant-advanced").performClick()
+            }
             compose.onNodeWithTag("assistant-list").performScrollToNode(hasTestTag(tag)); return compose.onNodeWithTag(tag)
         }
         try {
             waitFor { it.canPrepare }; assertNull(model().state.value.sources)
             scroll("assistant-prepare").performClick(); waitFor { !it.busy && it.sources != null }
             assertTrue(model().state.value.sources!!.references.single().hit.text.contains("Güneş doğdu."))
-            scroll("assistant-question").performTextReplacement("Bu metinde ne oldu?")
+            scroll("assistant-ask-question").performTextReplacement("Bu metinde ne oldu?")
             scroll("assistant-send").performClick(); waitFor { it.failure == BookAnswerFailure.CONFIGURATION }
             assertNull(model().state.value.answer); assertNull(runBlocking { container.reading.resume(book.id, hash) })
             scenario.moveToState(Lifecycle.State.CREATED); assertFalse(model().state.value.active); assertNull(model().state.value.sources)

@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -209,7 +210,7 @@ class LibraryTextSearchUiTest {
         capture("library-text-query-double-type")
         scrollText(text(R.string.library_text_limit, 200, 240)).assertIsDisplayed()
         readable(text(R.string.library_text_limit, 200, 240))
-        compose.onNodeWithTag("library-text-list").performScrollToIndex(205)
+        compose.onNodeWithTag("library-text-list").performScrollToIndex(203)
         scrollTag("library-text-open-200").assertIsDisplayed().performClick()
         readable(text(R.string.library_text_open), "library-text-open-200")
         val snippet = hasText(hit.snippet) and hasAnyAncestor(hasTestTag("library-text-hit-200"))
@@ -285,6 +286,7 @@ class LibraryTextSearchUiTest {
         compose.setContent { YaprakTheme { LibraryScreen(LibraryState.Ready(emptyList()), false,
             SnackbarHostState(), {}, {}, {}, "metadata only", metadataChanges::add, discoveryState = discovery,
             onTextSearch = if (available) if (version == 1) one else two else null) } }
+        compose.onNodeWithContentDescription("Kitaplık araçları").performClick()
         val old = compose.onNodeWithText(text(R.string.library_text_title)).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { discovery = DiscoveryState.Choosing("picker") }
         compose.onNodeWithText(text(R.string.library_text_title)).assertIsNotEnabled()
@@ -361,6 +363,10 @@ class LibraryTextSearchUiTest {
         compose.activityRule.scenario.recreate()
     }
     private fun readable(value: String, ancestorTag: String? = null) {
+        // Back is an icon in the top bar; its label is the content description.
+        if (value == compose.activity.getString(com.yaprak.reader.R.string.library_text_back)) {
+            compose.onNodeWithContentDescription(value).assertExists(); return
+        }
         val layouts = mutableListOf<TextLayoutResult>()
         val matcher = if (ancestorTag == null) hasText(value) else hasText(value) and hasAnyAncestor(hasTestTag(ancestorTag))
         compose.onNode(matcher, useUnmergedTree = true).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }

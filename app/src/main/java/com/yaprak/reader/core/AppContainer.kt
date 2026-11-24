@@ -97,6 +97,7 @@ class AppContainer(context: Context) {
         com.yaprak.reader.data.discovery.PersistentBookFolderRepository(context)
     val weeklyReadingGoal: com.yaprak.reader.domain.statistics.WeeklyReadingGoalRepository = sharedSettings
     val readingGoal: com.yaprak.reader.domain.statistics.DailyReadingGoalRepository = sharedSettings
+    val readingReminder: com.yaprak.reader.domain.statistics.ReadingReminderRepository = sharedSettings
     val englishDictionary: com.yaprak.reader.domain.dictionary.EnglishDictionary by lazy {
         com.yaprak.reader.data.dictionary.OnlineEnglishDictionary()
     }
@@ -109,7 +110,7 @@ class AppContainer(context: Context) {
     val bookAnswers: com.yaprak.reader.domain.assistant.BookAnswerService get() = answerService
     val selectedTextAnswers: com.yaprak.reader.domain.assistant.SelectedTextAnswerService get() = answerService
     private val database = Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
-        .addMigrations(LibraryDatabase.MIGRATION_1_2, LibraryDatabase.MIGRATION_2_3, LibraryDatabase.MIGRATION_3_4, LibraryDatabase.MIGRATION_4_5, LibraryDatabase.MIGRATION_5_6, LibraryDatabase.MIGRATION_6_7, LibraryDatabase.MIGRATION_7_8, LibraryDatabase.MIGRATION_8_9, LibraryDatabase.MIGRATION_9_10, LibraryDatabase.MIGRATION_10_11, LibraryDatabase.MIGRATION_11_12, LibraryDatabase.MIGRATION_12_13, LibraryDatabase.MIGRATION_13_14, LibraryDatabase.MIGRATION_14_15, LibraryDatabase.MIGRATION_15_16, LibraryDatabase.MIGRATION_16_17, LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build()
+        .addMigrations(LibraryDatabase.MIGRATION_1_2, LibraryDatabase.MIGRATION_2_3, LibraryDatabase.MIGRATION_3_4, LibraryDatabase.MIGRATION_4_5, LibraryDatabase.MIGRATION_5_6, LibraryDatabase.MIGRATION_6_7, LibraryDatabase.MIGRATION_7_8, LibraryDatabase.MIGRATION_8_9, LibraryDatabase.MIGRATION_9_10, LibraryDatabase.MIGRATION_10_11, LibraryDatabase.MIGRATION_11_12, LibraryDatabase.MIGRATION_12_13, LibraryDatabase.MIGRATION_13_14, LibraryDatabase.MIGRATION_14_15, LibraryDatabase.MIGRATION_15_16, LibraryDatabase.MIGRATION_16_17, LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build()
     val library: LibraryRepository = RoomLibraryRepository(database.books())
     val libraryLabels: com.yaprak.reader.domain.library.LibraryLabelsRepository by lazy {
         com.yaprak.reader.data.persistence.RoomLibraryLabelsRepository(database,
@@ -300,6 +301,13 @@ class AppContainer(context: Context) {
                 }
             })
     }
+    val pdfInk: com.yaprak.reader.domain.pdfink.PdfInkRepository by lazy {
+        com.yaprak.reader.data.persistence.RoomPdfInkRepository(database, validateAccess = {
+            check(startup.state.value == StartupState.Ready && !restoreJournal.exists()) {
+                "PDF highlighter requires completed restore recovery"
+            }
+        })
+    }
     val epubPassages: EpubPassageRepository = RoomEpubPassageRepository(
         database = database,
         fileMutex = bookOperations.fileMutex,
@@ -317,7 +325,7 @@ class AppContainer(context: Context) {
                 ocr, bookOperations.fileMutex, { expected ->
                     check(startup.state.value == StartupState.Ready && !restoreJournal.exists())
                     check(library.findById(expected.id) == expected)
-                }), com.yaprak.reader.formats.txt.TxtReaderLoader(context, library, reading, bookOperations.fileMutex, {
+                }, ink = pdfInk), com.yaprak.reader.formats.txt.TxtReaderLoader(context, library, reading, bookOperations.fileMutex, {
                     check(startup.state.value == StartupState.Ready && !restoreJournal.exists())
                 }), fb2 = com.yaprak.reader.formats.fb2.Fb2ReaderLoader(context, library, reading, bookOperations.fileMutex, {
                     check(startup.state.value == StartupState.Ready && !restoreJournal.exists())

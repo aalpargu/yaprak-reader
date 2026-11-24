@@ -33,6 +33,15 @@ internal fun ReadingTimeStatus(estimate: ReadingTimeEstimate) {
     }
 }
 
+/** Compact remaining-time line for the bottom bar: chapter first when known, then book. */
+@Composable
+internal fun readingTimeShortLabel(estimate: ReadingTimeEstimate?): String? {
+    val remaining = estimate as? ReadingTimeEstimate.Remaining ?: return null
+    val book = "kitap ~${readingDurationLabel(remaining.minutes)}"
+    val chapter = remaining.chapterMinutes?.takeIf { it > 0 }?.let { "bölüm ~${readingDurationLabel(it)}" }
+    return listOfNotNull(chapter, book).joinToString(" · ")
+}
+
 @Composable
 private fun readingDurationLabel(totalMinutes: Int): String {
     val hours = totalMinutes / 60

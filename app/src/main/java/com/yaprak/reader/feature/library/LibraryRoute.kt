@@ -72,6 +72,7 @@ fun LibraryRoute(viewModel: LibraryViewModel, onAllNotes: (() -> Unit)? = null,
     onWords: (() -> Unit)? = null, onLabels: (() -> Unit)? = null) {
     val state by viewModel.library.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
+    val bookReadingMillis by viewModel.bookReadingMillis.collectAsStateWithLifecycle()
     val sort by viewModel.sort.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val organizationFilters by viewModel.organizationFilters.collectAsStateWithLifecycle()
@@ -159,6 +160,13 @@ fun LibraryRoute(viewModel: LibraryViewModel, onAllNotes: (() -> Unit)? = null,
     val backupRestorePicker = rememberLauncherForActivityResult(OpenBackupDocument()) { uri ->
         viewModel.onBackupDocumentResult(BackupOperation.RESTORE, uri?.toString())
     }
+    val openBook by viewModel.openBook.collectAsStateWithLifecycle()
+    LaunchedEffect(openBook) {
+        openBook?.let { id ->
+            viewModel.consumeOpenBook(id)
+            context.startActivity(com.yaprak.reader.feature.reader.ReaderActivity.intent(context, id))
+        }
+    }
     LaunchedEffect(notice?.id) {
         notice?.takeIf { !it.isBatch }?.let { current ->
             current.results.singleOrNull()?.let { result ->
@@ -193,122 +201,130 @@ fun LibraryRoute(viewModel: LibraryViewModel, onAllNotes: (() -> Unit)? = null,
             viewModel.acknowledgeBackupNotice(it.id)
         }
     }
+    // The home screen widget follows the latest saved position (a no-op when no widget is placed).
+    val widgetBooks = (state as? LibraryState.Ready)?.let { ready -> mostRecentlyReadBook(ready.allBooks)?.let { it.id to ready.progress[it.id] } }
+    LaunchedEffect(widgetBooks) { if (widgetBooks != null) com.yaprak.reader.feature.widget.ContinueReadingWidget.refresh(context) }
     LibraryScreen(
-        state = state,
-        importing = importing,
-        importProgress = importProgress,
-        importPickerPending = importPickerPending,
-        importNotice = notice?.takeIf { it.isBatch },
-        onDismissImportNotice = { notice?.let { viewModel.acknowledgeNotice(it.id) } },
-        onStopRemainingImports = viewModel::requestStopRemainingImports,
-        exporting = exporting || exportPickerPending || studyExporting || studyExportPickerPending,
-        studyExporting = studyExporting || studyExportPickerPending,
-        removal = removal,
-        removalNotice = removalNotice,
-        onRemove = viewModel::removeBook,
-        onClearRemovalError = viewModel::clearRemovalError,
-        metadataEdit = metadataEdit,
-        onSaveMetadata = viewModel::saveBookMetadata,
-        onClearMetadataState = viewModel::clearBookMetadataState,
-        organizationEdit = organizationEdit,
-        onSaveOrganization = viewModel::saveBookOrganization,
-        onClearOrganizationState = viewModel::clearBookOrganizationState,
-        coverEdit = coverEdit,
-        onChangeCover = if (viewModel.coverEditAvailable) ({ book ->
-            if (viewModel.prepareCoverChange(book)) {
-                try { coverPicker.launch(OpenLocalCoverImage.MIME_TYPES) }
-                catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: RuntimeException) { viewModel.onCoverLaunchFailed() }
-            }
-        }) else null,
-        onResetCover = if (viewModel.coverEditAvailable) viewModel::resetBookCover else null,
-        onClearCoverEditState = viewModel::clearCoverEditState,
-        discoveryState = discoveryState,
-        onDiscover = if (viewModel.discoveryAvailable) ({
-            if (viewModel.prepareDiscovery()) {
-                try { folderPicker.launch(null) }
-                catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: RuntimeException) { viewModel.onDiscoveryLaunchFailed() }
-            }
-        }) else null,
-        onDiscoverySearch = viewModel::searchDiscovery,
-        onDiscoverySelect = viewModel::selectDiscoveredBook,
-        onDiscoverySelectAll = viewModel::selectAllDiscoveredBooks,
-        onDiscoveryClearSelection = viewModel::clearDiscoveredSelection,
-        onDiscoveryImport = viewModel::importDiscoveredBooks,
-        onDiscoveryDismiss = viewModel::dismissDiscovery,
-        onDiscoveryCancel = viewModel::cancelDiscovery,
-        bookFolderState = bookFolderState,
-        onRememberFolder = { session, uri, expected -> viewModel.rememberBookFolder(folderOwner, session, uri, expected) },
-        onSavedFolderScan = { expected -> viewModel.scanBookFolder(folderOwner, expected) },
-        onForgetFolder = { expected -> viewModel.forgetBookFolder(folderOwner, expected) },
-        onReloadFolder = viewModel::reloadBookFolder, onCancelFolderScan = { viewModel.cancelBookFolderScan(folderOwner) },
-        onFolderAutomatic = { expected, enabled -> viewModel.setBookFolderAutomaticScan(folderOwner, expected, enabled) },
-        onFolderOpeningUi = { loaded, eligible -> viewModel.reportBookFolderOpeningUi(folderOwner, loaded, eligible) },
-        onAllNotes = onAllNotes,
-        onTextSearch = onTextSearch,
-        onStatistics = onStatistics,
-        onWords = onWords,
-        onLabels = onLabels,
+        screen = LibraryScreenState(state, query, sort, filter, organizationFilters, layout, preferenceStatus,
+            bookReadingMillis, coverLoader = coverRequest),
+        work = LibraryWorkState(
+            importing = importing,
+            importProgress = importProgress,
+            importPickerPending = importPickerPending,
+            importNotice = notice?.takeIf { it.isBatch },
+            exporting = exporting || exportPickerPending || studyExporting || studyExportPickerPending,
+            studyExporting = studyExporting || studyExportPickerPending,
+            removal = removal,
+            removalNotice = removalNotice,
+            metadataEdit = metadataEdit,
+            organizationEdit = organizationEdit,
+            coverEdit = coverEdit,
+            backupAvailable = viewModel.backupAvailable,
+            backupRunning = backupRunning,
+            backupPickerPending = backupPickerPending,
+            discovery = discoveryState,
+            bookFolder = bookFolderState,
+        ),
         snackbarHostState = snackbar,
-        onImport = {
-            if (viewModel.prepareImport()) {
-                try { picker.launch(arrayOf(com.yaprak.reader.formats.docx.DOCX_MIME_TYPE, "application/epub+zip", "application/pdf", "text/plain", "application/vnd.comicbook+zip", "application/x-cbz", "application/vnd.comicbook-rar", "application/x-cbr", "application/vnd.rar", "application/x-rar-compressed", "application/x-fictionbook+xml", "application/x-fictionbook+zip", "application/xml", "text/xml", "application/octet-stream", "application/zip", "application/x-zip-compressed")) }
-                catch (_: RuntimeException) { viewModel.onImportLaunchFailed() }
-            }
-        },
-        onRetry = viewModel::retry,
-        onRead = { id -> context.startActivity(com.yaprak.reader.feature.reader.ReaderActivity.intent(context, id)) },
-        onExport = { book ->
-            viewModel.prepareExport(book)?.let { request ->
-                try {
-                    when (request.format) {
-                        BookFormat.EPUB -> epubExportPicker.launch(request.suggestedFileName)
-                        BookFormat.PDF -> pdfExportPicker.launch(request.suggestedFileName)
-                        BookFormat.TXT -> txtExportPicker.launch(request.suggestedFileName)
-                        BookFormat.DOCX -> docxExportPicker.launch(request.suggestedFileName)
-                        BookFormat.CBZ -> cbzExportPicker.launch(request.suggestedFileName)
-                        BookFormat.CBR -> cbrExportPicker.launch(request.suggestedFileName)
-                        BookFormat.FB2 -> if (request.fb2Zip) fb2ZipExportPicker.launch(request.suggestedFileName)
-                            else fb2ExportPicker.launch(request.suggestedFileName)
-                    }
-                } catch (_: RuntimeException) {
-                    viewModel.onExportLaunchFailed(request.format)
+        browse = LibraryBrowseActions(
+            onImport = {
+                if (viewModel.prepareImport()) {
+                    try { picker.launch(arrayOf(com.yaprak.reader.formats.docx.DOCX_MIME_TYPE, "application/epub+zip", "application/pdf", "text/plain", "application/vnd.comicbook+zip", "application/x-cbz", "application/vnd.comicbook-rar", "application/x-cbr", "application/vnd.rar", "application/x-rar-compressed", "application/x-fictionbook+xml", "application/x-fictionbook+zip", "application/xml", "text/xml", "application/octet-stream", "application/zip", "application/x-zip-compressed")) }
+                    catch (_: RuntimeException) { viewModel.onImportLaunchFailed() }
                 }
-            }
-        },
-        onStudyExportFormat = if (viewModel.studyExportAvailable) ({ book, format ->
-            viewModel.prepareStudyExport(book, format)
-        }) else null,
-        onSearch = viewModel::search,
-        query = query,
-        sort = sort,
-        onSort = viewModel::chooseSort,
-        filter = filter,
-        onFilter = viewModel::chooseFilter,
-        organizationFilters = organizationFilters,
-        onOrganizationFilters = viewModel::chooseOrganizationFilters,
-        onResetFilters = viewModel::clearFilters,
-        layout = layout,
-        onLayout = viewModel::chooseLayout,
-        coverLoader = coverRequest,
-        preferenceStatus = preferenceStatus,
-        onRetryPreferences = viewModel::retryPreferences,
-        backupAvailable = viewModel.backupAvailable,
-        backupRunning = backupRunning,
-        backupPickerPending = backupPickerPending,
-        onBackupCreate = {
-            if (viewModel.prepareBackup(BackupOperation.CREATE)) {
-                try { backupCreatePicker.launch("Yaprak-yedek.yaprak") }
-                catch (_: RuntimeException) { viewModel.onBackupLaunchFailed(BackupOperation.CREATE) }
-            }
-        },
-        onBackupRestore = {
-            if (viewModel.prepareBackup(BackupOperation.RESTORE)) {
-                try { backupRestorePicker.launch(arrayOf("*/*")) }
-                catch (_: RuntimeException) { viewModel.onBackupLaunchFailed(BackupOperation.RESTORE) }
-            }
-        },
+            },
+            onRetry = viewModel::retry,
+            onRead = { id -> context.startActivity(com.yaprak.reader.feature.reader.ReaderActivity.intent(context, id)) },
+            onSearch = viewModel::search,
+            onSort = viewModel::chooseSort,
+            onFilter = viewModel::chooseFilter,
+            onOrganizationFilters = viewModel::chooseOrganizationFilters,
+            onResetFilters = viewModel::clearFilters,
+            onLayout = viewModel::chooseLayout,
+            onRetryPreferences = viewModel::retryPreferences,
+            onStopRemainingImports = viewModel::requestStopRemainingImports,
+            onDismissImportNotice = { notice?.let { viewModel.acknowledgeNotice(it.id) } },
+        ),
+        books = LibraryBookActions(
+            onExport = { book ->
+                viewModel.prepareExport(book)?.let { request ->
+                    try {
+                        when (request.format) {
+                            BookFormat.EPUB -> epubExportPicker.launch(request.suggestedFileName)
+                            BookFormat.PDF -> pdfExportPicker.launch(request.suggestedFileName)
+                            BookFormat.TXT -> txtExportPicker.launch(request.suggestedFileName)
+                            BookFormat.DOCX -> docxExportPicker.launch(request.suggestedFileName)
+                            BookFormat.CBZ -> cbzExportPicker.launch(request.suggestedFileName)
+                            BookFormat.CBR -> cbrExportPicker.launch(request.suggestedFileName)
+                            BookFormat.FB2 -> if (request.fb2Zip) fb2ZipExportPicker.launch(request.suggestedFileName)
+                                else fb2ExportPicker.launch(request.suggestedFileName)
+                        }
+                    } catch (_: RuntimeException) {
+                        viewModel.onExportLaunchFailed(request.format)
+                    }
+                }
+            },
+            onRemove = viewModel::removeBook,
+            onClearRemovalError = viewModel::clearRemovalError,
+            onSaveMetadata = viewModel::saveBookMetadata,
+            onClearMetadataState = viewModel::clearBookMetadataState,
+            onStudyExportFormat = if (viewModel.studyExportAvailable) ({ book, format ->
+                viewModel.prepareStudyExport(book, format)
+            }) else null,
+            onSaveOrganization = viewModel::saveBookOrganization,
+            onClearOrganizationState = viewModel::clearBookOrganizationState,
+            onChangeCover = if (viewModel.coverEditAvailable) ({ book ->
+                if (viewModel.prepareCoverChange(book)) {
+                    try { coverPicker.launch(OpenLocalCoverImage.MIME_TYPES) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: RuntimeException) { viewModel.onCoverLaunchFailed() }
+                }
+            }) else null,
+            onResetCover = if (viewModel.coverEditAvailable) viewModel::resetBookCover else null,
+            onClearCoverEditState = viewModel::clearCoverEditState,
+        ),
+        tools = LibraryToolActions(
+            onAllNotes = onAllNotes,
+            onTextSearch = onTextSearch,
+            onStatistics = onStatistics,
+            onWords = onWords,
+            onLabels = onLabels,
+            onBackupCreate = {
+                if (viewModel.prepareBackup(BackupOperation.CREATE)) {
+                    try { backupCreatePicker.launch("Yaprak-yedek.yaprak") }
+                    catch (_: RuntimeException) { viewModel.onBackupLaunchFailed(BackupOperation.CREATE) }
+                }
+            },
+            onBackupRestore = {
+                if (viewModel.prepareBackup(BackupOperation.RESTORE)) {
+                    try { backupRestorePicker.launch(arrayOf("*/*")) }
+                    catch (_: RuntimeException) { viewModel.onBackupLaunchFailed(BackupOperation.RESTORE) }
+                }
+            },
+        ),
+        discovery = LibraryDiscoveryActions(
+            onDiscover = if (viewModel.discoveryAvailable) ({
+                if (viewModel.prepareDiscovery()) {
+                    try { folderPicker.launch(null) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: RuntimeException) { viewModel.onDiscoveryLaunchFailed() }
+                }
+            }) else null,
+            onSearch = viewModel::searchDiscovery,
+            onSelect = viewModel::selectDiscoveredBook,
+            onSelectAll = viewModel::selectAllDiscoveredBooks,
+            onClearSelection = viewModel::clearDiscoveredSelection,
+            onImport = viewModel::importDiscoveredBooks,
+            onDismiss = viewModel::dismissDiscovery,
+            onCancel = viewModel::cancelDiscovery,
+            onRememberFolder = { session, uri, expected -> viewModel.rememberBookFolder(folderOwner, session, uri, expected) },
+            onSavedFolderScan = { expected -> viewModel.scanBookFolder(folderOwner, expected) },
+            onForgetFolder = { expected -> viewModel.forgetBookFolder(folderOwner, expected) },
+            onReloadFolder = viewModel::reloadBookFolder,
+            onCancelFolderScan = { viewModel.cancelBookFolderScan(folderOwner) },
+            onFolderAutomatic = { expected, enabled -> viewModel.setBookFolderAutomaticScan(folderOwner, expected, enabled) },
+            onFolderOpeningUi = { loaded, eligible -> viewModel.reportBookFolderOpeningUi(folderOwner, loaded, eligible) },
+        ),
     )
 }
 

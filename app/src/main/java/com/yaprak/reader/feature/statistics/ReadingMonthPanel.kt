@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +54,7 @@ internal fun LazyListScope.readingMonthItems(
             }
         }
     }
+    item("month-legend") { ReadingHeatLegend() }
     item("month-next") {
         key(state.snapshot, state.today, state.revision, state.active) {
             ReadingMonthAction(stringResource(R.string.reading_calendar_next), "statistics-month-next", calendar.month,
@@ -70,20 +72,49 @@ private fun ReadingMonthWeek(week: List<ReadingCalendarDay?>, today: LocalDate) 
             if (day == null) Spacer(Modifier.weight(1f).height(48.dp))
             else {
                 val positive = day.elapsedMillis != null && day.elapsedMillis > 0
-                val summary = day.elapsedMillis?.let { durationText(it) } ?: stringResource(R.string.reading_statistics_day_empty)
+                val summary = day.elapsedMillis?.let { millis ->
+                    listOfNotNull(durationText(millis), day.pages?.let { "$it sayfa" }).joinToString(", ")
+                } ?: stringResource(R.string.reading_statistics_day_empty)
                 val savedDescription = stringResource(R.string.reading_calendar_day_description, day.date.toString(), summary)
                 val description = if (day.date == today) stringResource(R.string.reading_calendar_today_description, savedDescription) else savedDescription
                 Box(Modifier.weight(1f).heightIn(min = 48.dp).padding(2.dp)
                     .testTag("calendar-cell-${day.date}")
                     .clearAndSetSemantics { contentDescription = description }
-                    .then(if (positive) Modifier.background(MaterialTheme.colorScheme.secondaryContainer, CircleShape) else Modifier)
-                    .then(if (day.date == today) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
+                    .background(heatColor(heatLevel(day.elapsedMillis)), RoundedCornerShape(8.dp))
+                    .then(if (day.date == today) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)) else Modifier),
                     contentAlignment = Alignment.Center) {
                     Text(day.date.dayOfMonth.toString(), style = MaterialTheme.typography.labelMedium,
-                        color = if (positive) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)
+                        color = if (heatLevel(day.elapsedMillis) >= 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
+    }
+}
+
+/** 0 = no saved time; 1..4 = under 15 min, under 30, under 60, an hour or more. */
+internal fun heatLevel(millis: Long?): Int = when {
+    millis == null || millis <= 0 -> 0
+    millis < 15 * 60_000L -> 1
+    millis < 30 * 60_000L -> 2
+    millis < 60 * 60_000L -> 3
+    else -> 4
+}
+
+@Composable
+private fun heatColor(level: Int): androidx.compose.ui.graphics.Color = when (level) {
+    0 -> MaterialTheme.colorScheme.surfaceContainerLow
+    else -> MaterialTheme.colorScheme.primary.copy(alpha = listOf(0.18f, 0.4f, 0.68f, 0.95f)[level - 1])
+}
+
+/** Legend under the month: less → more. */
+@Composable
+internal fun ReadingHeatLegend() {
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        Text("Az", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        (0..4).forEach { level ->
+            Box(Modifier.padding(horizontal = 2.dp).size(14.dp).background(heatColor(level), RoundedCornerShape(3.dp)))
+        }
+        Text("Çok", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

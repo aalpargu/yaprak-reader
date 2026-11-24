@@ -90,7 +90,8 @@ class LibraryNotesAnkiUiTest {
             val scrollRange = helpScroll.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange]
             assertTrue(scrollRange.maxValue() > 0f)
             assertEquals(scrollRange.maxValue(), scrollRange.value(), 1f)
-            compose.onNodeWithText(help).assertIsDisplayed()
+            // Notion and Obsidian follow Anki now; the scroll end shows the last format's note.
+            compose.onNodeWithText(compose.activity.getString(R.string.library_notes_export_obsidian_help)).assertIsDisplayed()
             capture("$name-help-end")
             compose.onNodeWithTag("library-notes-export-cancel").assertIsDisplayed().assertIsEnabled()
             compose.onNodeWithTag(tag).performScrollTo().assertIsDisplayed().assertIsEnabled()

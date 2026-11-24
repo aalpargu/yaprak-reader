@@ -1,5 +1,6 @@
 package com.yaprak.reader.formats.cbz
 
+import com.yaprak.reader.readerMethod
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Looper
@@ -71,7 +72,7 @@ class CbzActivityTest {
             assertNull(runBlocking { container.reading.resume(id, book.sha256) })
             draw(first)
             idleUntil { model.latestLocation?.resourceHref == "cbz/2.png" }
-            val select = ReaderActivity::class.java.getDeclaredMethod("selectPage", Int::class.javaPrimitiveType).apply { isAccessible = true }
+            val select = ReaderActivity::class.java.readerMethod("selectPage", Int::class.javaPrimitiveType).apply { isAccessible = true }
             assertEquals(true, select.invoke(first, 1)); idleUntil { loaded(first) }; draw(first)
             idleUntil { model.latestLocation?.resourceHref == "cbz/10.png" }
             controller.recreate().visible()

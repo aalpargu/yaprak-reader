@@ -1,5 +1,6 @@
 package com.yaprak.reader.formats.cbz
 
+import com.yaprak.reader.readerMethod
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Looper
@@ -74,15 +75,15 @@ class CbzThumbnailsActivityTest {
         val bitmap = Bitmap.createBitmap(411, 891, Bitmap.Config.ARGB_8888)
         try { image.draw(Canvas(bitmap)) } finally { bitmap.recycle() }
     }
-    private fun property(activity: ReaderActivity, getter: String) = activity.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(activity)
+    private fun property(activity: ReaderActivity, getter: String) = activity.javaClass.readerMethod(getter).apply { isAccessible = true }.invoke(activity)
     private fun request(activity: ReaderActivity) = property(activity, "getPdfThumbnailsRequest") as PdfThumbnailsRequest?
-    private fun open(activity: ReaderActivity) { activity.javaClass.getDeclaredMethod("openPdfThumbnails").apply { isAccessible = true }.invoke(activity) }
+    private fun open(activity: ReaderActivity) { activity.javaClass.readerMethod("openPdfThumbnails").apply { isAccessible = true }.invoke(activity) }
     private fun dismiss(activity: ReaderActivity, expected: PdfThumbnailsRequest) {
-        activity.javaClass.getDeclaredMethod("dismissPdfThumbnails", PdfThumbnailsRequest::class.java).apply { isAccessible = true }.invoke(activity, expected)
+        activity.javaClass.readerMethod("dismissPdfThumbnails", PdfThumbnailsRequest::class.java).apply { isAccessible = true }.invoke(activity, expected)
     }
-    private fun current(activity: ReaderActivity, expected: PdfThumbnailsRequest) = activity.javaClass.getDeclaredMethod("isPdfThumbnailsCurrent", PdfThumbnailsRequest::class.java)
+    private fun current(activity: ReaderActivity, expected: PdfThumbnailsRequest) = activity.javaClass.readerMethod("isPdfThumbnailsCurrent", PdfThumbnailsRequest::class.java)
         .apply { isAccessible = true }.invoke(activity, expected) as Boolean
-    private fun select(activity: ReaderActivity, expected: PdfThumbnailsRequest, page: Int) = activity.javaClass.getDeclaredMethod("selectPdfThumbnail", PdfThumbnailsRequest::class.java,
+    private fun select(activity: ReaderActivity, expected: PdfThumbnailsRequest, page: Int) = activity.javaClass.readerMethod("selectPdfThumbnail", PdfThumbnailsRequest::class.java,
         Int::class.javaPrimitiveType!!).apply { isAccessible = true }.invoke(activity, expected, page) as Boolean
 
     @Test fun actualPreviewBrowserPreservesSourceAndProgressUntilSelectedPageReallyDraws() {

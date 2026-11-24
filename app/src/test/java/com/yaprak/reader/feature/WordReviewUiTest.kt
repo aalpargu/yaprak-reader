@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -83,6 +84,8 @@ class WordReviewUiTest {
     }
     private fun scroll(tag: String) = compose.onNodeWithTag("review-list").performScrollToNode(hasTestTag(tag)).let { compose.onNodeWithTag(tag) }
     private fun readable(text: String) {
+        // Back is an icon in the top bar; its label is the content description.
+        if (text == "Kelimelere dön") { compose.onNodeWithContentDescription(text).assertExists(); return }
         val layouts = mutableListOf<TextLayoutResult>()
         compose.onNodeWithText(text, useUnmergedTree = true).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single(); assertFalse((0 until layout.lineCount).any(layout::isLineEllipsized))

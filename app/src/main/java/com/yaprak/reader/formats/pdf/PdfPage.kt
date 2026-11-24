@@ -42,6 +42,11 @@ import com.yaprak.reader.reader.PdfPageCrop
 import com.yaprak.reader.reader.PdfTextPoint
 import com.yaprak.reader.domain.pdfannotations.PdfAnnotation
 import com.yaprak.reader.domain.pdfannotations.PdfHighlightColor
+import com.yaprak.reader.formats.pdf.ink.PdfInkProjection
+import com.yaprak.reader.formats.pdf.ink.detectPdfInk
+import com.yaprak.reader.formats.pdf.ink.drawPdfInk
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -70,7 +75,12 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
     // Capture coordinates at pointer down; only the returned action runs after single-tap confirmation.
     onContentTap: ((Offset, IntSize) -> (() -> Unit))? = null,
     drawWitness: PdfPageDrawWitness? = null, parentScrolls: Boolean = false,
-    pointNavigationRevision: Long = 0L) {
+    pointNavigationRevision: Long = 0L, selectionController: PdfTextSelectionSource? = null, arrivalDirection: Int = 0,
+    // Continuous lists: a selection started on a visible neighbor makes that page the current one,
+    // so bookmarks and the saved position follow the text being selected.
+    onSelectionPage: ((Int) -> Unit)? = null,
+    // Waits until that newly current page is drawn; selections are only accepted on a drawn page.
+    awaitSelectionPage: (suspend (Int) -> Unit)? = null) {
     var viewport by remember { mutableStateOf(IntSize.Zero) }
     var bitmap by remember(page, viewport.width) { mutableStateOf<Bitmap?>(null) }
     var renderTicket by remember(page, viewport.width) { mutableStateOf<Long?>(null) }
@@ -84,6 +94,33 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
     val swipePage by rememberUpdatedState(onSwipePage)
     val renderFailed by rememberUpdatedState(onRenderFailed)
     val selectText by rememberUpdatedState(onTextSelection)
+    val selectionPreview = selectionController?.preview?.collectAsState()?.value?.takeIf { it.page == page }
+    val ink = com.yaprak.reader.formats.pdf.ink.LocalPdfInk.current
+    val inkScroll = com.yaprak.reader.formats.pdf.ink.LocalPdfInkScroll.current
+    val inkActive = ink?.active?.collectAsState()?.value == true
+    val inkStrokes = ink?.strokes?.collectAsState()?.value.orEmpty()
+    val inkDraft = ink?.draft?.collectAsState()?.value?.takeIf { it.page == page }
+    val scope = rememberCoroutineScope()
+    var selectionJob by remember { mutableStateOf<Job?>(null) }
+    var selectionNotice by remember(page) { mutableStateOf<String?>(null) }
+    fun preview(from: PdfTextPoint?, to: PdfTextPoint?) {
+        if (selectionController == null || from == null || to == null) return
+        selectionJob?.cancel()
+        selectionNotice = null
+        selectionJob = scope.launch {
+            try {
+                awaitSelectionPage?.invoke(page)
+                selectionController.preview(page, from, to)
+                if (!selectionController.active && selectionController.preview.value == null)
+                    selectionNotice = "Bu bölgede seçilebilir metin bulunamadı. Taranmış sayfalar için Diğer menüsünden OCR’ı deneyebilirsin."
+            }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { selectionController.clear(); selectionNotice = "Metin seçimi tamamlanamadı. Yeniden deneyebilirsin." }
+        }
+    }
+    DisposableEffect(page, fitRequest, cropRequest, pointNavigationRevision, zoom, pan) {
+        onDispose { selectionJob?.cancel(); selectionController?.clearPage(page) }
+    }
     var selecting by remember(page, viewport, fitRequest, cropRequest, pointNavigationRevision) { mutableStateOf(false) }
     var selectionMultiTouch by remember(page, viewport, fitRequest, cropRequest, pointNavigationRevision) { mutableStateOf(false) }
     val pendingTap = remember(page, viewport, fitRequest, cropRequest, pointNavigationRevision) { PdfPendingContentTap() }
@@ -111,6 +148,10 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
         val area = cropRequest.crop.bounds(image.width, image.height)
         if (hasViewport) pan = clampPdfPan(pan, zoom, viewport, IntSize(area.width, area.height), fitRequest.mode)
     }
+    val arrival = remember(page) { androidx.compose.animation.core.Animatable(if (arrivalDirection == 0) 0f else arrivalDirection.toFloat()) }
+    LaunchedEffect(page, bitmap) {
+        if (bitmap != null) arrival.animateTo(0f, androidx.compose.animation.core.tween(220))
+    }
     val drawGeometry = bitmap?.let { image -> PdfDrawGeometry(viewport, IntSize(image.width, image.height),
         cropRequest.crop, fitRequest.mode, zoom, pan, pointNavigationRevision) }
     SideEffect { drawWitness?.update(bitmap, renderTicket, drawGeometry) }
@@ -130,16 +171,31 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
             else -> {
                 val area = cropRequest.crop.bounds(image.width, image.height)
                 val sourceSize = IntSize(area.width, area.height)
+                val imageSize = IntSize(image.width, image.height)
+                // Pen mode replaces every reading gesture on the page (tap, zoom, selection, swipe).
+                val inkInput = if (ink != null && inkActive) Modifier.pointerInput(page, viewport, image, fitRequest,
+                    cropRequest, pointNavigationRevision, ink) {
+                    detectPdfInk(ink, page,
+                        projection = { PdfInkProjection.of(viewport, imageSize, cropRequest.crop, fitRequest.mode) },
+                        zoom = { zoom }, pan = { pan },
+                        transform = { delta, factor ->
+                            zoom = (zoom * factor).coerceIn(1f, 3f)
+                            if (hasViewport) pan = clampPdfPan(pan + delta, zoom, viewport, sourceSize, fitRequest.mode)
+                        }, scroll = inkScroll)
+                } else null
                 Box(modifier = Modifier.fillMaxSize()
+                    .graphicsLayer { translationX = arrival.value * viewport.width }
                     .semantics {
                         contentDescription = "PDF sayfası ${page + 1}"
                         role = Role.Image
                         onClick(label = "Okuma araçlarını göster veya gizle") { onTap(); true }
                     }
+                    .then(inkInput ?: Modifier
                     .pointerInput(page, viewport, fitRequest, cropRequest, pointNavigationRevision) {
                         detectTapGestures(onTap = {
                             // The passive Initial-pass observer invalidates a multi-pointer gesture.
                             if (selectionMultiTouch) return@detectTapGestures
+                            if (selectionPreview != null) { selectionController?.clear(); return@detectTapGestures }
                             val action = pendingTap.action
                             if (action == null) onTap() else action()
                         }, onDoubleTap = {
@@ -172,10 +228,12 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
                             try {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { point ->
+                                        if (selectionController != null && !selectionMultiTouch) onSelectionPage?.invoke(page)
                                         gestureZoom = zoom; gesturePan = pan; invalid = false
                                         start = pdfSelectionPoint(point, viewport, IntSize(image.width, image.height),
                                             cropRequest.crop, fitRequest.mode, gestureZoom, gesturePan)
                                         stop = start; selecting = start != null && !selectionMultiTouch
+                                        preview(start, stop)
                                     },
                                     onDrag = { change, _ ->
                                         if (selectionMultiTouch) { invalid = true; selecting = false }
@@ -183,7 +241,7 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
                                             change.consume()
                                             stop = pdfSelectionPoint(change.position, viewport, IntSize(image.width, image.height),
                                                 cropRequest.crop, fitRequest.mode, gestureZoom, gesturePan)
-                                            if (stop == null) invalid = true
+                                            if (stop == null) invalid = true else preview(start, stop)
                                         }
                                     },
                                     onDragCancel = { selecting = false; start = null; stop = null; invalid = true },
@@ -191,7 +249,7 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
                                         val from = start; val to = stop
                                         val active = selecting && !invalid && !selectionMultiTouch && zoom == gestureZoom && pan == gesturePan
                                         selecting = false; start = null; stop = null
-                                        if (active && from != null && to != null) selectText?.invoke(page, from, to)
+                                        if (active && from != null && to != null && selectionController == null) selectText?.invoke(page, from, to)
                                     },
                                 )
                             } finally { selecting = false }
@@ -231,11 +289,11 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
                                 }
                             } while (event.changes.any { it.pressed })
                         }
-                    }
+                    })
                     .onGloballyPositioned { drawWitness?.position(it) }
                     .drawWithContent {
                         drawContent()
-                        drawGeometry?.let { drawWitness?.painted(image, renderTicket, it) }
+                        if (arrival.value == 0f) drawGeometry?.let { drawWitness?.painted(image, renderTicket, it) }
                     }
                     .graphicsLayer { scaleX = zoom; scaleY = zoom; translationX = pan.x; translationY = pan.y }
                     // Image clips at its own viewport before panning. Paint the selected source area here;
@@ -246,6 +304,20 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
                         contentScale = if (fitRequest.mode == PdfFitMode.WIDTH) ContentScale.FillWidth else ContentScale.Fit,
                         colorFilter = if (nightMode) pdfNightColorFilter else null)) {
                     Canvas(Modifier.matchParentSize()) {
+                        PdfInkProjection.of(viewport, imageSize, cropRequest.crop, fitRequest.mode)?.let { projection ->
+                            inkStrokes.forEach { stroke ->
+                                if (stroke.pageIndex == page)
+                                    drawPdfInk(stroke.segments, stroke.mode, stroke.color, projection, nightMode)
+                            }
+                            inkDraft?.let { drawPdfInk(it.segments, it.mode, it.color, projection, nightMode) }
+                        }
+                        selectionPreview?.selection?.sourceAnchor?.let { anchor ->
+                            anchor.bounds.forEach { bounds ->
+                                pdfAnnotationRectangle(anchor, bounds, viewport, IntSize(image.width, image.height), cropRequest.crop, fitRequest.mode)?.let {
+                                    drawRect(Color(0x663399FF), it.topLeft, it.size)
+                                }
+                            }
+                        }
                         verifiedAnnotations.filter { it.anchor.pageIndex == page }.forEach { annotation ->
                             val color = annotation.highlightColor?.paintColor() ?: return@forEach
                             annotation.anchor.bounds.forEach { bounds ->
@@ -254,6 +326,16 @@ internal fun PdfPage(renderPage: suspend (Int, Int) -> Bitmap, page: Int, onTap:
                                     drawRect(color, rectangle.topLeft, rectangle.size)
                                 }
                             }
+                        }
+                    }
+                }
+                if (selectionController != null && selectionPreview != null) PdfSelectionOverlay(selectionController,
+                    selectionPreview, viewport, IntSize(image.width, image.height), cropRequest.crop, fitRequest.mode, zoom, pan)
+                selectionNotice?.let { message ->
+                    Surface(Modifier.align(Alignment.TopCenter).padding(12.dp), shape = MaterialTheme.shapes.medium) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(message)
+                            TextButton({ selectionNotice = null }) { Text("Kapat") }
                         }
                     }
                 }

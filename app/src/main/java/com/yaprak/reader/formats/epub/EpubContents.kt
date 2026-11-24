@@ -11,6 +11,9 @@ internal class EpubContents(links: List<Link>, readingOrder: List<Link>) {
     private val destinations = mutableMapOf<String, Link>()
     private val resourceCounts = readingOrder.groupingBy { it.url().removeFragment().toString() }.eachCount()
     private val wholeResourceEntries: Map<String, String>
+    private val resourceOrdinals: Map<String, Int>
+    /** Navigable TOC entries with the reading-order index of their resource, in TOC order. */
+    private val entryOrdinals: List<Pair<String, Int>>
 
     init {
         val resources = readingOrder.map { it.url().removeFragment() }.toSet()
@@ -32,6 +35,10 @@ internal class EpubContents(links: List<Link>, readingOrder: List<Link>) {
         contents = BookContents(entries.toList(), truncated = stack.any { it.hasNext() })
         val order = readingOrder.map { it.url().removeFragment().toString() }
         val ordinals = order.withIndex().associate { it.value to it.index }
+        resourceOrdinals = ordinals
+        entryOrdinals = entries.mapNotNull { entry -> destinations[entry.id]?.let { link ->
+            ordinals[link.url().removeFragment().toString()]?.let { entry.id to it }
+        } }
         val tocOrdinals = entries.mapNotNull { entry -> destinations[entry.id]?.let {
             ordinals[it.url().removeFragment().toString()]
         } }
@@ -62,6 +69,17 @@ internal class EpubContents(links: List<Link>, readingOrder: List<Link>) {
 
     fun entryIdForResource(href: String): String? = if (contents.truncated || resourceCounts[href] != 1) null
         else destinations.entries.firstOrNull { it.value.url().removeFragment().toString() == href }?.key
+
+    /**
+     * The chapter being read: the last TOC entry that starts in the current resource or before it.
+     * Display only ("you are here"); never a navigation or progress claim.
+     */
+    fun currentEntryId(href: String): String? {
+        val here = resourceOrdinals[href] ?: return null
+        val candidates = entryOrdinals.filter { it.second <= here }
+        val best = candidates.maxOfOrNull { it.second } ?: return null
+        return candidates.last { it.second == best }.first
+    }
 
     private companion object { const val MAX_ENTRIES = 5000 }
 }

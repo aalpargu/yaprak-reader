@@ -365,7 +365,7 @@ class EpubRangePersistenceTest {
                 }
                 sql.version = 17
             }
-            Room.databaseBuilder(context, LibraryDatabase::class.java, name).addMigrations(LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26)
+            Room.databaseBuilder(context, LibraryDatabase::class.java, name).addMigrations(LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28)
                 .build().useDatabase { database ->
                     snapshots.forEach { (table, before) ->
                         assertEquals(table, before.second, rows(database.openHelper.writableDatabase.query("SELECT ${before.first} FROM $table")))
@@ -377,7 +377,7 @@ class EpubRangePersistenceTest {
                 }
             Room.databaseBuilder(context, LibraryDatabase::class.java, name).build().useDatabase { database ->
                 assertEquals(2, RoomEpubPassageRepository(database).observe(book.id, book.sha256).first().size)
-                assertEquals(26L, database.openHelper.writableDatabase.query("PRAGMA user_version").use { assertTrue(it.moveToFirst()); it.getLong(0) })
+                assertEquals(28L, database.openHelper.writableDatabase.query("PRAGMA user_version").use { assertTrue(it.moveToFirst()); it.getLong(0) })
             }
         } finally { context.deleteDatabase(name) }
     }

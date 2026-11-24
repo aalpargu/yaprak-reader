@@ -1,12 +1,12 @@
 package com.yaprak.reader.reader
 
+import com.yaprak.reader.readerMethod
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.View
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.runtime.State
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.SemanticsMatcher
@@ -137,8 +137,8 @@ internal fun readerWindowDiagnostic(scenario: ActivityScenario<ReaderActivity>):
             .get(fragment) as PdfRenderStatus
         val viewport = PdfRenderStatus::class.java.getDeclaredField("scrollViewport").apply { isAccessible = true }
             .get(status)
-        val chrome = ReaderActivity::class.java.getDeclaredField("chrome\$delegate").apply { isAccessible = true }
-            .get(activity) as State<*>
+        val chrome = ReaderActivity::class.java.readerMethod("getChrome").apply { isAccessible = true }
+            .invoke(activity) as Boolean
         val root = activity.window.decorView
         val insets = ViewCompat.getRootWindowInsets(root)
         result = "focus=${activity.window.decorView.hasWindowFocus()}, resumed=${fragment.isResumed}, " +
@@ -146,7 +146,7 @@ internal fun readerWindowDiagnostic(scenario: ActivityScenario<ReaderActivity>):
             "drawn=${status.drawnPosition.value}, navigation=${status.scrollNavigation.value}, " +
             "settled=${status.scrollNavigationSettled}, visible=${status.visibleScrollPages.value}, " +
             "selection=${fragment.textSelection?.active}, failed=${status.renderFailed.value}, " +
-            "viewport=$viewport, chrome=${chrome.value}, root=${root.width}x${root.height}, " +
+            "viewport=$viewport, chrome=$chrome, root=${root.width}x${root.height}, " +
             "statusBar=${insets?.isVisible(WindowInsetsCompat.Type.statusBars())}, " +
             "navigationBar=${insets?.isVisible(WindowInsetsCompat.Type.navigationBars())}"
     }

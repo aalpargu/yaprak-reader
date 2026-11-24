@@ -197,14 +197,15 @@ class EpubAnnotationViewModelTest {
         assertTrue(model.state.value.editChanged); assertNotNull(model.state.value.message)
     }
 
-    @Test fun `replaced list session discards pending write feedback and ignores old dispose token`() = checkModel { owner ->
+    // startSession keeps an admitted in-flight edit model-owned, so a failed write never silently loses the draft.
+    @Test fun `replaced list session keeps failed in-flight edit draft and ignores old dispose token`() = checkModel { owner ->
         val repository = Repository().apply { records.value = listOf(saved); fail = true }
         val model = EpubPassagesViewModel("book", "hash", repository).also { owner.put("list", it) }
         runCurrent(); model.startSession("old"); model.requestEdit(saved); model.editNote("draft"); model.update(); runCurrent()
         model.startSession("new"); model.clearSession("old"); advanceUntilIdle()
         assertEquals("new", model.state.value.sessionId)
-        assertNull(model.state.value.pendingEdit); assertEquals("", model.state.value.editNote)
-        assertNull(model.state.value.message); assertFalse(model.state.value.busy)
+        assertEquals(saved, model.state.value.pendingEdit); assertEquals("draft", model.state.value.editNote)
+        assertNotNull(model.state.value.message); assertFalse(model.state.value.busy)
     }
 
     @Test fun `saved passage search combines Turkish folded quote and attached note without mutation`() {

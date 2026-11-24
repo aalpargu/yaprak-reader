@@ -62,9 +62,9 @@ internal data class BackupRecords(
 
 /** Explicit v26 whitelist, with frozen v12..v25 shapes for legacy archives. */
 internal object BackupRecordsCodec {
-    const val FORMAT_VERSION = 26
+    const val FORMAT_VERSION = 28
     private val legacyThemeNames = setOf("SYSTEM", "LIGHT", "SEPIA", "DARK")
-    const val DATABASE_VERSION = 26
+    const val DATABASE_VERSION = 28
     const val MAX_BOOKS = 1000
     const val MAX_BOOK_BYTES = 512L * 1024 * 1024
     const val MAX_TOTAL_BOOK_BYTES = 8L * 1024 * 1024 * 1024
@@ -146,8 +146,14 @@ internal object BackupRecordsCodec {
         Table("word_schedules", listOf(s("wordId"), s("bookId"), s("contentSha256"), l("wordRevision"),
             s("fingerprint"), l("version"), i("step"), l("reviewedAt"), l("dueAt"), s("zoneId"),
             s("lastEventId"), i("algorithm")), listOf("wordId")),
+        Table("reading_page_receipts", listOf(s("id"), s("bookId"), s("contentSha256"),
+            s("localDate"), i("pages")), listOf("id")),
+        Table("pdf_ink_strokes", listOf(s("id"), s("bookId"), s("contentSha256"), i("pageIndex"),
+            s("color"), s("mode"), s("geometry"), l("createdAt")), listOf("id")),
     )
-    private val v25Tables = tables.filterNot { it.name == "book_pdf_navigation_preferences" }
+    private val v27Tables = tables.filterNot { it.name == "pdf_ink_strokes" }
+    private val v26Tables = v27Tables.filterNot { it.name == "reading_page_receipts" }
+    private val v25Tables = v26Tables.filterNot { it.name == "book_pdf_navigation_preferences" }
     private val v24Tables = v25Tables.filterNot { it.name == "book_cbz_view_preferences" }
     private val v23Tables = v24Tables.filterNot { it.name == "book_epub_reading_mode_overrides" }
     private val v22Tables = v23Tables.filterNot { it.name == "book_epub_text_alignment_overrides" }
@@ -239,6 +245,8 @@ internal object BackupRecordsCodec {
             18 -> v23Tables
             19 -> v24Tables
             20 -> v25Tables
+            21, 22, 23, 24, 25, 26 -> v26Tables
+            27 -> v27Tables
             else -> tables
         }
         // New tables under an old header are rejected, never silently dropped.
@@ -279,7 +287,11 @@ internal object BackupRecordsCodec {
         val alignmentRows = if (formatVersion <= 17) completionRows + ("book_epub_text_alignment_overrides" to emptyList()) else completionRows
         val modeRows = if (formatVersion <= 18) alignmentRows + ("book_epub_reading_mode_overrides" to emptyList()) else alignmentRows
         val comicRows = if (formatVersion <= 19) modeRows + ("book_cbz_view_preferences" to emptyList()) else modeRows
-        val rows = if (formatVersion <= 20) comicRows + ("book_pdf_navigation_preferences" to emptyList()) else comicRows
+        val navigationRows = if (formatVersion <= 20) comicRows + ("book_pdf_navigation_preferences" to emptyList()) else comicRows
+        // Older archives never measured pages; their reading time restores without a page count.
+        val pageRows = if (formatVersion <= 26) navigationRows + ("reading_page_receipts" to emptyList()) else navigationRows
+        // Older archives had no highlighter; their PDFs restore without ink.
+        val rows = if (formatVersion <= 27) pageRows + ("pdf_ink_strokes" to emptyList()) else pageRows
         validateBooks(booksFromRows(rows.getValue("books")), formatVersion)
         return validate(BackupRecords(booksFromRows(rows.getValue("books")), settings, rows,
             coversFromRows(rows.getValue("book_covers"))))
@@ -308,7 +320,7 @@ internal object BackupRecordsCodec {
         val root = try { JSONObject(strictUtf8(bytes)) }
             catch (_: Exception) { throw BackupProblem(BackupFailure.INVALID_ARCHIVE) }
         val formatVersion = integer(root, "formatVersion")
-        val expectedDatabaseVersion = when (formatVersion) { 1, 2, 3 -> 12; 4 -> 13; 5 -> 14; 6 -> 15; 7 -> 16; 8 -> 17; 9 -> 18; 10 -> 19; 11, 12, 13 -> 20; 14 -> 21; 15, 16, 17 -> 22; 18 -> 23; 19 -> 24; 20 -> 25; 21, 22, 23, 24, 25, 26 -> 26; else -> -1 }
+        val expectedDatabaseVersion = when (formatVersion) { 1, 2, 3 -> 12; 4 -> 13; 5 -> 14; 6 -> 15; 7 -> 16; 8 -> 17; 9 -> 18; 10 -> 19; 11, 12, 13 -> 20; 14 -> 21; 15, 16, 17 -> 22; 18 -> 23; 19 -> 24; 20 -> 25; 21, 22, 23, 24, 25, 26 -> 26; 27 -> 27; 28 -> 28; else -> -1 }
         if (formatVersion !in 1..FORMAT_VERSION ||
             integer(root, "databaseVersion") != expectedDatabaseVersion) {
             throw BackupProblem(BackupFailure.UNSUPPORTED_VERSION)
@@ -407,6 +419,16 @@ internal object BackupRecordsCodec {
             comicForeignKeys != listOf(listOf("books", "bookId", "id", "NO ACTION", "CASCADE", "NONE")))
             throw BackupProblem(BackupFailure.UNSUPPORTED_VERSION)
         validateWordReviewSchema(sql)
+        val inkPrimaryKey = sql.query("PRAGMA table_info(pdf_ink_strokes)").use { cursor ->
+            buildMap { while (cursor.moveToNext()) if (cursor.getInt(5) != 0) put(cursor.getString(1), cursor.getInt(5)) }
+        }
+        val inkForeignKeys = sql.query("PRAGMA foreign_key_list(pdf_ink_strokes)").use { cursor ->
+            buildList { while (cursor.moveToNext()) add(listOf(cursor.getString(2), cursor.getString(3),
+                cursor.getString(4), cursor.getString(5), cursor.getString(6), cursor.getString(7))) }
+        }
+        if (inkPrimaryKey != mapOf("id" to 1) ||
+            inkForeignKeys != listOf(listOf("books", "bookId", "id", "NO ACTION", "CASCADE", "NONE")))
+            throw BackupProblem(BackupFailure.UNSUPPORTED_VERSION)
         val completionKeys = sql.query("PRAGMA table_info(book_completion_events)").use { cursor ->
             buildMap { while (cursor.moveToNext()) if (cursor.getInt(5) != 0) put(cursor.getString(1), cursor.getInt(5)) }
         }
@@ -592,6 +614,13 @@ internal object BackupRecordsCodec {
             if (count > MAX_PDF_ANNOTATIONS_PER_BOOK) throw BackupProblem(BackupFailure.TOO_LARGE)
             pdfCounts[bookId] = count
         }
+        val inkCounts = HashMap<String, Int>()
+        records.rows.getValue("pdf_ink_strokes").forEach { row ->
+            val bookId = string(row, "bookId")
+            val count = (inkCounts[bookId] ?: 0) + 1
+            if (count > com.yaprak.reader.domain.pdfink.MAX_PDF_INK_STROKES_PER_BOOK) throw BackupProblem(BackupFailure.TOO_LARGE)
+            inkCounts[bookId] = count
+        }
         validateWordReviews(records)
         return records
     }
@@ -701,6 +730,24 @@ internal object BackupRecordsCodec {
                         string(row, "contentSha256"), string(row, "localDate"), string(row, "zoneId"),
                         long(row, "startedAt"), long(row, "endedAt"), long(row, "elapsedMillis")))
                 } catch (_: Exception) { invalid() }
+            }
+            "pdf_ink_strokes" -> {
+                val book = books[string(row, "bookId")] ?: invalid()
+                val id = string(row, "id")
+                if (runCatching { UUID.fromString(id).toString() }.getOrNull() != id ||
+                    string(book, "format") != "PDF" || integer(row, "pageIndex") !in 0 until integer(book, "pageCount") ||
+                    long(row, "createdAt") < 0 ||
+                    string(row, "color") !in PdfHighlightColor.entries.map { it.name } ||
+                    string(row, "mode") !in com.yaprak.reader.domain.pdfink.PdfInkMode.entries.map { it.name }) invalid()
+                try { com.yaprak.reader.domain.pdfink.PdfInkGeometryCodec.decode(string(row, "geometry")) }
+                catch (_: Exception) { invalid() }
+            }
+            "reading_page_receipts" -> {
+                val book = books[string(row, "bookId")] ?: invalid()
+                if (string(row, "id").isBlank() || string(row, "id").length > 200 ||
+                    string(row, "contentSha256") != string(book, "sha256") ||
+                    !Regex("\\d{4}-\\d{2}-\\d{2}").matches(string(row, "localDate")) ||
+                    integer(row, "pages") !in 0..1_000_000) invalid()
             }
             "books" -> {
                 val page = row.opt("pageCount")
@@ -860,7 +907,7 @@ internal object BackupRecordsCodec {
         var total = 0L
         books.forEach { book ->
             if (runCatching { UUID.fromString(book.id).toString() }.getOrNull() != book.id ||
-                book.format !in (when (formatVersion) { 26 -> setOf("EPUB", "PDF", "TXT", "CBZ", "CBR", "FB2", "DOCX"); 25 -> setOf("EPUB", "PDF", "TXT", "CBZ", "FB2", "DOCX"); 22, 23, 24 -> setOf("EPUB", "PDF", "TXT", "CBZ", "FB2"); in 17..21 -> setOf("EPUB", "PDF", "TXT", "CBZ"); 16 -> setOf("EPUB", "PDF", "TXT"); else -> setOf("EPUB", "PDF") }) ||
+                book.format !in (when (formatVersion) { 26, 27, 28 -> setOf("EPUB", "PDF", "TXT", "CBZ", "CBR", "FB2", "DOCX"); 25 -> setOf("EPUB", "PDF", "TXT", "CBZ", "FB2", "DOCX"); 22, 23, 24 -> setOf("EPUB", "PDF", "TXT", "CBZ", "FB2"); in 17..21 -> setOf("EPUB", "PDF", "TXT", "CBZ"); 16 -> setOf("EPUB", "PDF", "TXT"); else -> setOf("EPUB", "PDF") }) ||
                 book.storageName != "${book.id}.${book.format.lowercase()}" ||
                 !hashPattern.matches(book.sha256) ||
                 !ids.add(book.id) || !names.add(book.storageName) || !hashes.add(book.sha256)) invalid()

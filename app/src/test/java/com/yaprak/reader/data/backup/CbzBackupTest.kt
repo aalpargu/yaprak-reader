@@ -98,7 +98,7 @@ class CbzBackupTest {
             assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             val entries = entries(docs.bytes!!)
             val manifest = JSONObject(entries.getValue("manifest.json").toString(Charsets.UTF_8))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertArrayEquals(bytes, entries.getValue("books/${book.storageName}"))
             assertEquals(BackupResult.Restored(1), target.backup(docs).restore("content://backup"))
             val restored = RoomLibraryRepository(target.db.books()).findById(id)!!

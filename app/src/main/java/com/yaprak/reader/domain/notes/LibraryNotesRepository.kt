@@ -26,6 +26,8 @@ data class LibraryNote(
     val highlightColor: EpubHighlightColor? = null,
     val pdfSourceAnchor: com.yaprak.reader.reader.PdfSourceAnchor? = null,
     val pdfHighlightColor: com.yaprak.reader.domain.pdfannotations.PdfHighlightColor? = null,
+    /** A highlight without an attached note: [text] repeats the highlighted [sourceText]; exports skip it. */
+    val highlightOnly: Boolean = false,
 ) {
     val identity: LibraryNoteIdentity get() = LibraryNoteIdentity(source, id)
 }

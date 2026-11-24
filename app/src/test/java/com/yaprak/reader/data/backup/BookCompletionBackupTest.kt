@@ -76,7 +76,7 @@ class BookCompletionBackupTest {
     private fun rewrite(bytes: ByteArray, version: Int = 22, edit: (JSONObject) -> Unit): ByteArray {
         val entries = entries(bytes)
         val records = JSONObject(entries.getValue("records.json").toString(Charsets.UTF_8))
-        if (version <= 20) records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
+        if (version <= 27) records.getJSONObject("tables").remove("pdf_ink_strokes"); if (version <= 26) records.getJSONObject("tables").remove("reading_page_receipts"); if (version <= 20) records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
         if (version <= 19) records.getJSONObject("tables").remove("book_cbz_view_preferences")
         if (version <= 18) records.getJSONObject("tables").remove("book_epub_reading_mode_overrides")
         if (version <= 17) records.getJSONObject("tables").remove("book_epub_text_alignment_overrides")
@@ -106,7 +106,7 @@ class BookCompletionBackupTest {
             val expected = RoomBookCompletionRepository(source.db).observe().first()
             assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             val manifest = JSONObject(entries(docs.bytes!!).getValue("manifest.json").toString(Charsets.UTF_8))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertEquals(BackupResult.Restored(1), target.backup(docs).restore("content://backup"))
             val actual = RoomBookCompletionRepository(target.db).observe().first()
             assertEquals(1, actual.total); assertEquals(expected.entries, actual.entries)

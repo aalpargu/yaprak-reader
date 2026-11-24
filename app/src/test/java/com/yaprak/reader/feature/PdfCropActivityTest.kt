@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -203,7 +204,7 @@ class PdfCropActivityTest {
             val book = session.book
             val subscriptions = surface.observations
             fun toggle(owner: ReaderSurface = surface, expected: Boolean = false) {
-                val method = activity.javaClass.getDeclaredMethod("togglePdfSpread", Book::class.java,
+                val method = activity.javaClass.readerMethod("togglePdfSpread", Book::class.java,
                     ReaderSurface::class.java, Boolean::class.javaPrimitiveType!!).apply { isAccessible = true }
                 method.invoke(activity, book, owner, expected)
             }
@@ -243,7 +244,7 @@ class PdfCropActivityTest {
             assertEquals(listOf(false), surface.spreadApplies)
             assertEquals(PdfPageCrop(2, 3), surface.crop.applied)
             val output = Bundle()
-            activity.javaClass.getDeclaredMethod("onSaveInstanceState", Bundle::class.java)
+            activity.javaClass.readerMethod("onSaveInstanceState", Bundle::class.java)
                 .apply { isAccessible = true }.invoke(activity, output)
             assertNull(PdfSpreadSavedState.read(output))
             assertNull(PdfCropSavedState.read(output))
@@ -253,7 +254,7 @@ class PdfCropActivityTest {
         withHost(session = Session(book.copy(sha256 = "b".repeat(64))), saved = saved) {
             assertEquals(listOf(false), surface.spreadApplies)
             val output = Bundle()
-            activity.javaClass.getDeclaredMethod("onSaveInstanceState", Bundle::class.java)
+            activity.javaClass.readerMethod("onSaveInstanceState", Bundle::class.java)
                 .apply { isAccessible = true }.invoke(activity, output)
             assertNull(PdfSpreadSavedState.read(output)); assertTrue(storage.records.isEmpty())
         }
@@ -278,7 +279,7 @@ class PdfCropActivityTest {
             invoke(activity, "fitPdf", Boolean::class.javaPrimitiveType!!, false)
             assertFalse(navigate(activity) { surface.forward() })
             var toolbarCalls = 0
-            activity.javaClass.getDeclaredMethod("readerAction", Function0::class.java)
+            activity.javaClass.readerMethod("readerAction", Function0::class.java)
                 .apply { isAccessible = true }.invoke(activity, { toolbarCalls++ })
             invoke(activity, "openOrientation"); invoke(activity, "openBrightness")
             invoke(activity, "openBookNotes"); invoke(activity, "openPdfThumbnails")
@@ -532,7 +533,7 @@ class PdfCropActivityTest {
             assertEquals(listOf(edited), surface.crop.calls)
             invoke(activity, "openPdfCrop"); assertNull(request(activity))
             surface.crop.failure = null
-            activity.javaClass.getDeclaredMethod("retryPdfBookView", PdfBookViewPreferencesState::class.java)
+            activity.javaClass.readerMethod("retryPdfBookView", PdfBookViewPreferencesState::class.java)
                 .apply { isAccessible = true }.invoke(activity, preferences(activity).state.value)
             runCurrent()
             assertFalse(failed(activity)); assertNull(request(activity))
@@ -594,7 +595,7 @@ class PdfCropActivityTest {
         withHost(pdfPreferences = repository) {
             invoke(activity, "openPdfCrop"); assertTrue(apply(activity, request(activity)!!, edited)); runCurrent()
             invoke(activity, "fitPdf", Boolean::class.javaPrimitiveType!!, true); runCurrent()
-            activity.javaClass.getDeclaredMethod("togglePdfSpread", Book::class.java, ReaderSurface::class.java,
+            activity.javaClass.readerMethod("togglePdfSpread", Book::class.java, ReaderSurface::class.java,
                 Boolean::class.javaPrimitiveType!!).apply { isAccessible = true }.invoke(activity, session.book, surface, false)
             runCurrent()
             assertEquals(BookPdfViewPreferences(7, 14, PdfFitPreference.WIDTH, true), repository.value.value)
@@ -714,13 +715,13 @@ class PdfCropActivityTest {
 
     private fun toggleNavigation(activity: ReaderActivity, owner: Surface, expected: Boolean,
         lease: PdfBookViewPreferencesState) {
-        activity.javaClass.getDeclaredMethod("togglePdfScroll", ReaderSurface::class.java,
+        activity.javaClass.readerMethod("togglePdfScroll", ReaderSurface::class.java,
             com.yaprak.reader.reader.PdfScrollController::class.java, Boolean::class.javaPrimitiveType!!,
             PdfBookViewPreferencesState::class.java).apply { isAccessible = true }
             .invoke(activity, owner, owner.pdfScroll, expected, lease)
     }
     private fun retryPreferences(activity: ReaderActivity) {
-        activity.javaClass.getDeclaredMethod("retryPdfBookView", PdfBookViewPreferencesState::class.java)
+        activity.javaClass.readerMethod("retryPdfBookView", PdfBookViewPreferencesState::class.java)
             .apply { isAccessible = true }.invoke(activity, preferences(activity).state.value)
     }
 
@@ -742,18 +743,20 @@ class PdfCropActivityTest {
             install(reader); install(orientation); install(night); install(pdfView)
             host.start().resume(); runCurrent()
             assertEquals(session.resume, session.initials.single())
+            // The reader opens full screen now; these flows start from shown tools, as after a first tap.
+            host.get().chrome = true; runCurrent()
             Fixture(host, session, storage, reader, orientation, orientationPreferences, nightPreferences, pdfPreferences).test()
         } finally { host.pause().stop().destroy(); Dispatchers.resetMain() }
     }
 
     private fun invoke(activity: ReaderActivity, name: String) {
-        activity.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(name).apply { isAccessible = true }.invoke(activity)
     }
     private fun invoke(activity: ReaderActivity, name: String, type: Class<*>, argument: Any) {
-        activity.javaClass.getDeclaredMethod(name, type).apply { isAccessible = true }.invoke(activity, argument)
+        activity.javaClass.readerMethod(name, type).apply { isAccessible = true }.invoke(activity, argument)
     }
     private fun property(activity: ReaderActivity, getter: String): Any? =
-        activity.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(getter).apply { isAccessible = true }.invoke(activity)
     private fun request(activity: ReaderActivity) = property(activity, "getPdfCropRequest") as PdfCropRequest?
     private fun preferences(activity: ReaderActivity) = property(activity, "getPdfBookView") as PdfBookViewPreferencesViewModel
     private fun choice(activity: ReaderActivity): PdfCropChoice? {
@@ -764,33 +767,33 @@ class PdfCropActivityTest {
     }
     private fun failed(activity: ReaderActivity) = property(activity, "getPdfCropApplyFailed") as Boolean
     private fun current(activity: ReaderActivity, expected: PdfCropRequest): Boolean =
-        activity.javaClass.getDeclaredMethod("isPdfCropCurrent", PdfCropRequest::class.java)
+        activity.javaClass.readerMethod("isPdfCropCurrent", PdfCropRequest::class.java)
             .apply { isAccessible = true }.invoke(activity, expected) as Boolean
     private suspend fun apply(activity: ReaderActivity, expected: PdfCropRequest, crop: PdfPageCrop): Boolean =
         suspendCoroutineUninterceptedOrReturn { continuation ->
             try {
-                activity.javaClass.getDeclaredMethod("applyPdfCrop", PdfCropRequest::class.java, PdfPageCrop::class.java,
+                activity.javaClass.readerMethod("applyPdfCrop", PdfCropRequest::class.java, PdfPageCrop::class.java,
                     Continuation::class.java).apply { isAccessible = true }.invoke(activity, expected, crop, continuation)
             } catch (wrapped: InvocationTargetException) { throw wrapped.targetException }
         }
     private fun dismiss(activity: ReaderActivity, expected: PdfCropRequest) {
-        activity.javaClass.getDeclaredMethod("dismissPdfCrop", PdfCropRequest::class.java)
+        activity.javaClass.readerMethod("dismissPdfCrop", PdfCropRequest::class.java)
             .apply { isAccessible = true }.invoke(activity, expected)
     }
     private fun navigate(activity: ReaderActivity, action: () -> Boolean): Boolean =
-        activity.javaClass.getDeclaredMethod("navigate", Function0::class.java)
+        activity.javaClass.readerMethod("navigate", Function0::class.java)
             .apply { isAccessible = true }.invoke(activity, action) as Boolean
     private fun setSurface(activity: ReaderActivity, surface: ReaderSurface) {
         activity.javaClass.getDeclaredField("surface").apply { isAccessible = true }.set(activity, surface)
     }
     private fun setNavigator(activity: ReaderActivity, navigator: PageNavigator?) {
-        activity.javaClass.getDeclaredMethod("setPageNavigator", PageNavigator::class.java)
+        activity.javaClass.readerMethod("setPageNavigator", PageNavigator::class.java)
             .apply { isAccessible = true }.invoke(activity, navigator)
     }
     private suspend fun render(activity: ReaderActivity, expected: PdfCropRequest): Bitmap =
         suspendCoroutineUninterceptedOrReturn { continuation ->
             try {
-                activity.javaClass.getDeclaredMethod("renderPdfCropPreview", PdfCropRequest::class.java,
+                activity.javaClass.readerMethod("renderPdfCropPreview", PdfCropRequest::class.java,
                     Continuation::class.java).apply { isAccessible = true }.invoke(activity, expected, continuation)
             } catch (wrapped: InvocationTargetException) { throw wrapped.targetException }
         }

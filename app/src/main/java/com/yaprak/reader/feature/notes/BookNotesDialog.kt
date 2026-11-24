@@ -1,5 +1,12 @@
 package com.yaprak.reader.feature.notes
 
+import android.os.Bundle
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.SideEffect
+import com.yaprak.reader.feature.reader.rememberReaderPanelAdmission
+import com.yaprak.reader.feature.reader.ReaderDraftSnapshot
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
@@ -20,11 +28,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.yaprak.reader.feature.reader.readerDialogReturnFocusTarget
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -48,13 +58,37 @@ internal fun BookNotesRoute(
     onDismiss: () -> Unit,
     prefillText: String? = null,
     capturePdfPage: (() -> Int?)? = null,
-    onGoToPdfPage: ((Int) -> Boolean)? = null,
+    onGoToPdfPage: ((Int, () -> Boolean) -> Boolean)? = null,
     onCopy: ((text: String) -> Unit)? = null,
+    restoration: Bundle? = null, onRestorationChange: (Bundle?) -> Unit = {}, canMutate: () -> Boolean = { true }, canInteract: () -> Boolean = canMutate, presentationEpoch: Long = 0L,
 ) {
     val model: BookNotesViewModel = viewModel(key = "book-notes-${book.id}-${book.sha256}", factory = viewModelFactory {
         initializer { BookNotesViewModel(book.id, book.sha256, repository) }
     })
     val state by model.state.collectAsStateWithLifecycle()
+    val admitted = rememberReaderPanelAdmission("$presentationEpoch:" + (state.pendingEdit?.let { "edit-${it.id}" }
+        ?: state.pendingDelete?.let { "delete-${it.id}" }), canInteract)
+    fun fresh() = admitted() && canMutate()
+    val restored = remember(model) { ReaderDraftSnapshot.fromBundle(restoration) }
+    var restorationApplied by remember(model) { mutableStateOf(false) }
+    val baseListState = rememberLazyListState(restored?.listIndex ?: 0, restored?.listOffset ?: 0)
+    LaunchedEffect(model, state.loading, state.loadFailed, state.busy) {
+        if (!state.loading && !state.loadFailed && !state.busy && !restorationApplied) {
+            model.restorePresentation(restored)
+            restorationApplied = true
+        }
+    }
+    val snapshotChanged by rememberUpdatedState(onRestorationChange)
+    fun publishSnapshot() {
+        if (!restorationApplied) return
+        snapshotChanged(model.snapshot(baseListState.firstVisibleItemIndex, baseListState.firstVisibleItemScrollOffset).toBundle())
+    }
+    SideEffect { publishSnapshot() }
+    LaunchedEffect(baseListState) {
+        snapshotFlow { baseListState.firstVisibleItemIndex to baseListState.firstVisibleItemScrollOffset }
+            .collect { publishSnapshot() }
+    }
+
     var navigationMessage by remember(book.id, book.sha256) { mutableStateOf<String?>(null) }
     LaunchedEffect(prefillText, model) {
         prefillText?.let(model::prefillDraft)
@@ -63,7 +97,7 @@ internal fun BookNotesRoute(
         { id: String ->
             val current = model.state.value
             val entry = current.entries.singleOrNull { it.id == id }
-            check(entry != null && !current.loading && !current.loadFailed && !current.busy &&
+            check(fresh() && entry != null && !current.loading && !current.loadFailed && !current.busy &&
                 current.pendingEdit == null && current.pendingDelete == null) {
                 "Note is unavailable for copying"
             }
@@ -72,43 +106,53 @@ internal fun BookNotesRoute(
     }
     BookNotesDialog(
         state = state,
-        onEditDraft = model::editDraft,
-        onSave = model::add,
+        onEditDraft = { if (admitted()) { model.editDraft(it); publishSnapshot() } },
+        onSave = { if (fresh()) { model.add(); publishSnapshot() } },
         onSaveAtPdfPage = if (book.format == BookFormat.PDF && capturePdfPage != null) {
-            { model.addAtPdfPage(capturePdfPage) }
+            { if (fresh()) model.addAtPdfPage(capturePdfPage) }
         } else null,
-        onReload = model::reload,
-        onRequestDelete = model::requestDelete,
-        onDelete = model::delete,
-        onCancelDelete = model::cancelDelete,
+        onReload = { if (admitted()) { model.reload(); publishSnapshot() } },
+        onRequestDelete = { if (fresh()) { model.requestDelete(it); publishSnapshot() } },
+        onDelete = { if (fresh()) model.delete() },
+        onCancelDelete = { if (admitted()) { model.cancelDelete(); publishSnapshot() } },
         onDismiss = {
-            if (!state.busy && state.pendingDelete == null && state.pendingEdit == null) {
+            if (admitted() && !state.busy && state.pendingDelete == null && state.pendingEdit == null) {
                 model.clearSession()
                 onDismiss()
             }
         },
-        onRequestEdit = model::requestEdit,
-        onEditSelectedDraft = model::editSelectedDraft,
-        onSaveEdit = model::saveEdit,
-        onCancelEdit = model::cancelEdit,
-        onSearch = model::search,
-        onClearSearch = model::clearSearch,
-        onSort = model::setSort,
+        onRequestEdit = { if (fresh()) { model.requestEdit(it); publishSnapshot() } },
+        onEditSelectedDraft = { if (admitted()) { model.editSelectedDraft(it); publishSnapshot() } },
+        onSaveEdit = { if (fresh()) { model.saveEdit(); publishSnapshot() } },
+        onCancelEdit = { if (admitted()) { model.cancelEdit(); publishSnapshot() } },
+        onSearch = { if (admitted()) { model.search(it); publishSnapshot() } },
+        onClearSearch = { if (admitted()) { model.clearSearch(); publishSnapshot() } },
+        onSort = { if (admitted()) { model.setSort(it); publishSnapshot() } },
         onGoToPdfPage = if (book.format == BookFormat.PDF) onGoToPdfPage?.let { navigate ->
             { pageIndex: Int ->
-                if (!state.busy && state.pendingDelete == null && state.pendingEdit == null) {
-                    val accepted = try { navigate(pageIndex) }
+                if (fresh() && !state.busy && state.pendingDelete == null && state.pendingEdit == null) {
+                    val expected = model.state.value
+                    var completed = false
+                    val accepted = try { navigate(pageIndex) {
+                        if (completed || !fresh() || model.state.value !== expected) false
+                        else {
+                            completed = true
+                            model.clearSession()
+                            onDismiss()
+                            true
+                        }
+                    } }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { false }
-                    if (accepted) {
-                        model.clearSession()
-                        onDismiss()
-                    } else navigationMessage = "PDF sayfasına gidilemedi. Yeniden deneyebilirsin."
+                    if (!accepted && !completed) navigationMessage = "PDF sayfasına gidilemedi. Yeniden deneyebilirsin."
                 }
             }
         } else null,
         navigationMessage = navigationMessage,
         onCopy = copyNote,
+        baseListState = baseListState,
+        canWrite = canMutate(),
+        onDiscardRecoveredEdit = { if (admitted()) { model.discardRecoveredEdit(it); publishSnapshot() } },
     )
 }
 
@@ -135,19 +179,43 @@ internal fun BookNotesDialog(
     onGoToPdfPage: ((Int) -> Unit)? = null,
     navigationMessage: String? = null,
     onCopy: ((noteId: String) -> Unit)? = null,
+    baseListState: LazyListState = rememberLazyListState(),
+    canWrite: Boolean = true,
+    onDiscardRecoveredEdit: (RecoveredBookNote) -> Unit = {},
 ) {
     var sortExpanded by remember { mutableStateOf(false) }
     var copyFeedback by remember(state.entries) { mutableStateOf<NoteCopyFeedback?>(null) }
-    val copyEnabled = !state.loading && !state.loadFailed && !state.busy &&
+    val copyEnabled = canWrite && !state.loading && !state.loadFailed && !state.busy &&
         state.pendingEdit == null && state.pendingDelete == null
-    AlertDialog(
+    // Keep the caller and scroll position while only the child owns an input Window.
+    var suspendedChild by remember { mutableStateOf<String?>(null) }
+    var returnFocus by remember { mutableStateOf<String?>(null) }
+    val child = state.pendingEdit?.let { "edit-${it.id}" }
+        ?: state.pendingDelete?.let { "delete-${it.id}" }
+    LaunchedEffect(child) {
+        if (child != null) {
+            suspendedChild = child
+            returnFocus = null
+            sortExpanded = false
+        } else {
+            suspendedChild?.let { caller ->
+                val id = caller.substringAfter('-')
+                returnFocus = if (canWrite && !state.loading && !state.loadFailed &&
+                    state.visibleEntries.any { it.id == id }) caller else "close"
+            }
+            suspendedChild = null
+        }
+    }
+    if (state.pendingEdit == null && state.pendingDelete == null) AlertDialog(
         modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
         properties = DialogProperties(usePlatformDefaultWidth = false),
         onDismissRequest = onDismiss,
-        title = { Text("Kitap notları") },
+        title = { Column { Text("Kitap notları"); if (!canWrite) Text("Okuyucu henüz hazır değil. Bu pencereyi kapatıp hata bildiriminden yeniden deneyebilirsin.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) } },
         text = {
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp).testTag("book-notes-list"),
+            LazyColumn(state = baseListState, modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp).testTag("book-notes-list"),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                state.recoveredEdit?.let { recovered -> item { RecoveredBookNoteContent(recovered, state.busy, onDiscardRecoveredEdit) } }
+                state.additionalRecoveredEdit?.let { recovered -> item { RecoveredBookNoteContent(recovered, state.busy, onDiscardRecoveredEdit, secondary = true) } }
                 item { Text(if (onSaveAtPdfPage == null) "Bu not kitabın geneline aittir; okuduğun konuma bağlanmaz."
                     else "Notu kitabın geneline veya o anda görüntülenen PDF sayfasına kaydedebilirsin.") }
                 item {
@@ -163,9 +231,9 @@ internal fun BookNotesDialog(
                         supportingText = { Text("1–2000 karakter") },
                     )
                 }
-                item { Button(onClick = onSave, enabled = state.canSave) { Text("Notu kaydet") } }
+                item { Button(onClick = onSave, enabled = canWrite && state.canSave) { Text("Notu kaydet") } }
                 if (onSaveAtPdfPage != null) item {
-                    Button(onClick = onSaveAtPdfPage, enabled = state.canSave,
+                    Button(onClick = onSaveAtPdfPage, enabled = canWrite && state.canSave,
                         modifier = Modifier.testTag("book-note-save-at-page")) {
                         Text("Bu PDF sayfasına not kaydet")
                     }
@@ -250,7 +318,7 @@ internal fun BookNotesDialog(
                                 Text("PDF sayfası ${pageIndex.toLong() + 1}", style = MaterialTheme.typography.bodySmall)
                                 if (onGoToPdfPage != null && pageIndex >= 0) TextButton(
                                     onClick = { onGoToPdfPage(pageIndex) },
-                                    enabled = !state.busy && state.pendingDelete == null && state.pendingEdit == null,
+                                    enabled = canWrite && !state.busy && state.pendingDelete == null && state.pendingEdit == null,
                                     modifier = Modifier.semantics {
                                         contentDescription = "${index + 1}. not: PDF sayfası ${pageIndex.toLong() + 1}, sayfaya git"
                                     },
@@ -258,15 +326,19 @@ internal fun BookNotesDialog(
                             }
                             TextButton(
                                 onClick = { onRequestEdit(entry.id) },
-                                enabled = !state.busy && state.pendingDelete == null && state.pendingEdit == null,
-                                modifier = Modifier.semantics {
+                                enabled = canWrite && !state.busy && state.pendingDelete == null && state.pendingEdit == null && state.recoveredEdit == null && state.additionalRecoveredEdit == null,
+                                modifier = Modifier.testTag("book-note-edit-${entry.id}")
+                                    .readerDialogReturnFocusTarget(returnFocus == "edit-${entry.id}") { returnFocus = null }
+                                    .semantics {
                                     contentDescription = "${index + 1}. not: ${entry.text.replace('\n', ' ').take(40)}, düzenle"
                                 },
                             ) { Text("Düzenle") }
                             TextButton(
                                 onClick = { onRequestDelete(entry.id) },
-                                enabled = !state.busy && state.pendingDelete == null && state.pendingEdit == null,
-                                modifier = Modifier.semantics {
+                                enabled = canWrite && !state.busy && state.pendingDelete == null && state.pendingEdit == null,
+                                modifier = Modifier.testTag("book-note-delete-${entry.id}")
+                                    .readerDialogReturnFocusTarget(returnFocus == "delete-${entry.id}") { returnFocus = null }
+                                    .semantics {
                                     contentDescription = "${index + 1}. not: ${entry.text.replace('\n', ' ').take(40)}, sil"
                                 },
                             ) { Text("Sil") }
@@ -277,6 +349,8 @@ internal fun BookNotesDialog(
             }
         },
         confirmButton = { TextButton(onClick = onDismiss,
+            modifier = Modifier.testTag("book-note-close")
+                .readerDialogReturnFocusTarget(returnFocus == "close") { returnFocus = null },
             enabled = !state.busy && state.pendingDelete == null && state.pendingEdit == null) {
             Text("Kapat")
         } },
@@ -286,15 +360,17 @@ internal fun BookNotesDialog(
             modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
             properties = DialogProperties(usePlatformDefaultWidth = false),
             onDismissRequest = onCancelDelete,
-            title = { Text("Not silinsin mi?") },
+            title = { Column { Text("Not silinsin mi?"); if (!canWrite) Text("Okuyucu henüz hazır değil. Bu pencereyi kapatıp hata bildiriminden yeniden deneyebilirsin.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) } },
             text = {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 300.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.recoveredEdit?.let { recovered -> item { RecoveredBookNoteContent(recovered, state.busy, onDiscardRecoveredEdit) } }
+                    state.additionalRecoveredEdit?.let { recovered -> item { RecoveredBookNoteContent(recovered, state.busy, onDiscardRecoveredEdit, secondary = true) } }
                     item { Text(entry.text) }
                     state.message?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
                 }
             },
-            confirmButton = { TextButton(onClick = onDelete, enabled = !state.busy) { Text("Notu sil") } },
+            confirmButton = { TextButton(onClick = onDelete, enabled = canWrite && !state.busy) { Text("Notu sil") } },
             dismissButton = { TextButton(onClick = onCancelDelete, enabled = !state.busy) { Text("Vazgeç") } },
         )
     }
@@ -303,10 +379,12 @@ internal fun BookNotesDialog(
             modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
             properties = DialogProperties(usePlatformDefaultWidth = false),
             onDismissRequest = onCancelEdit,
-            title = { Text("Notu düzenle") },
+            title = { Column { Text("Notu düzenle"); if (!canWrite) Text("Okuyucu henüz hazır değil. Bu pencereyi kapatıp hata bildiriminden yeniden deneyebilirsin.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) } },
             text = {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 300.dp).testTag("book-note-edit-content"),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.recoveredEdit?.let { recovered -> item { RecoveredBookNoteContent(recovered, state.busy, onDiscardRecoveredEdit) } }
+                    state.additionalRecoveredEdit?.let { recovered -> item { RecoveredBookNoteContent(recovered, state.busy, onDiscardRecoveredEdit, secondary = true) } }
                     item { Text(if (entry.pdfPageIndex == null) "Bu not kitabın geneline aittir; okuduğun konuma bağlanmaz."
                         else "Bu not PDF sayfası ${entry.pdfPageIndex.toLong() + 1} ile bağlıdır; düzenleme sayfayı değiştirmez.") }
                     item {
@@ -326,8 +404,26 @@ internal fun BookNotesDialog(
                     if (state.busy) item { Text("İşlem sürüyor…", style = MaterialTheme.typography.bodySmall) }
                 }
             },
-            confirmButton = { TextButton(onClick = onSaveEdit, enabled = state.canUpdate) { Text("Kaydet") } },
+            confirmButton = { TextButton(onClick = onSaveEdit, enabled = canWrite && state.canUpdate) { Text("Kaydet") } },
             dismissButton = { TextButton(onClick = onCancelEdit, enabled = !state.busy) { Text("Vazgeç") } },
         )
+    }
+}
+
+@Composable
+private fun RecoveredBookNoteContent(recovered: RecoveredBookNote, busy: Boolean,
+    onDiscard: (RecoveredBookNote) -> Unit, secondary: Boolean = false) {
+    key(recovered.id) {
+        val tag = if (secondary) "book-note-additional-recovered" else "book-note-recovered"
+        val admitted = rememberReaderPanelAdmission(recovered.id) { true }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(if (secondary) "Diğer korunan not taslağı" else "Korunan not düzenleme taslağı", style = MaterialTheme.typography.titleSmall)
+            Text("Başka bir kayıt düzenlemeden önce bu taslağı kopyalayıp sil.", style = MaterialTheme.typography.bodySmall)
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text(recovered.text, Modifier.testTag("$tag-text"))
+            }
+            TextButton(onClick = { if (admitted() && !busy) onDiscard(recovered) }, enabled = !busy,
+                modifier = Modifier.testTag("$tag-discard")) { Text(if (secondary) "Diğer korunan taslağı sil" else "Korunan taslağı sil") }
+        }
     }
 }

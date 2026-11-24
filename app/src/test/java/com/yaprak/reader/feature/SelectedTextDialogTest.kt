@@ -44,8 +44,8 @@ class SelectedTextDialogTest {
         compose.setContent { YaprakTheme { SelectedTextDialog(preview, { closed++; preview = null },
             { error("No loading copy") }, onTransferNote = { error("No loading note") }) } }
         compose.onNodeWithText("Sayfa metni tanınıyor…").assertIsDisplayed()
-        compose.onNodeWithText("Panoya kopyala").assertDoesNotExist()
-        compose.onNodeWithText("Not taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Kopyala").assertDoesNotExist()
+        compose.onNodeWithText("Not al").assertDoesNotExist()
         compose.onNodeWithText("Kapat").assertIsDisplayed()
         screenshot("ocr-loading-narrow-font2")
         compose.onNodeWithText("Kapat").performClick(); assertEquals(1, closed)
@@ -62,15 +62,15 @@ class SelectedTextDialogTest {
                 assistantContent = { error("OCR cannot borrow an EPUB AI anchor") })
         } }
         compose.onNodeWithText("OCR metni").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("PDF sayfa 2").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Sayfa 2").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("OCR sonucu hatalı olabilir; kullanmadan önce kontrol et. Bu metin özgün PDF metin seçimi veya kesin vurgu kaynağı değildir.")
             .performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").assertDoesNotExist()
-        compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Vurgula").assertDoesNotExist()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist()
         compose.onNodeWithText("Bu seçimin PDF metin sınırları bulunamadı. Vurgu kaydetmek için metni yeniden seçebilirsin; diğer araçları kullanabilirsin.")
             .assertDoesNotExist()
-        compose.onNodeWithText("Not taslağına aktar").performScrollTo().performClick(); assertEquals(1, notes)
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed().performClick(); assertEquals(1, copies)
+        compose.onNodeWithText("Not al").performScrollTo().performClick(); assertEquals(1, notes)
+        compose.onNodeWithText("Kopyala").assertIsDisplayed().performClick(); assertEquals(1, copies)
         compose.onNodeWithText("Kapat").assertIsDisplayed(); screenshot("ocr-ready-landscape-font2")
     }
     @Test @Config(qualifiers = "w320dp-h800dp-mdpi")
@@ -86,8 +86,8 @@ class SelectedTextDialogTest {
         compose.onNodeWithText("Seçim alınıyor…").assertIsDisplayed()
         compose.onNodeWithText("Özgün metin alınıyor. Kapatmak işlemi iptal eder.").assertIsDisplayed()
         compose.onNodeWithText("Kapat").assertIsDisplayed()
-        compose.onNodeWithText("Panoya kopyala").assertDoesNotExist()
-        compose.onNodeWithText("Kelime formuna aktar").assertDoesNotExist()
+        compose.onNodeWithText("Kopyala").assertDoesNotExist()
+        compose.onNodeWithText("Kelimelerime ekle").assertDoesNotExist()
         screenshot("pdf-selection-loading-narrow-font2")
         compose.onNodeWithText("Kapat").performClick(); assertEquals(1, closed)
         compose.onNodeWithText("Seçim alınıyor…").assertDoesNotExist()
@@ -103,13 +103,13 @@ class SelectedTextDialogTest {
                 onTransferWord = {}, onTransferNote = { notes++ }, onAnnotate = {}, onTransferPassage = {},
                 assistantContent = { error("No EPUB anchor may be invented for a PDF") })
         } }
-        compose.onNodeWithText("PDF sayfa 4").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Sayfa 4").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("alpha 🌿").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").assertDoesNotExist()
-        compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
-        compose.onNodeWithText("Not taslağına aktar").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Vurgula").assertDoesNotExist()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist()
+        compose.onNodeWithText("Not al").performScrollTo().assertIsDisplayed().performClick()
         assertEquals(1, notes)
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed().performClick(); assertEquals(1, copies)
+        compose.onNodeWithText("Kopyala").assertIsDisplayed().performClick(); assertEquals(1, copies)
         compose.onNodeWithText("Kapat").assertIsDisplayed()
         screenshot("pdf-selection-ready-landscape-font2")
     }
@@ -155,21 +155,21 @@ class SelectedTextDialogTest {
                 onTransferPassage = {}, onAnnotate = { accepted += requireNotNull(expected) })
         } }
         compose.onNodeWithText(initial.text).assertExists()
-        compose.onNodeWithText("Pasaj taslağına aktar").performScrollTo().assertIsDisplayed()
-        val old = compose.onNodeWithText("Vurgu ve bağlı not ekle").performScrollTo()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist() // Vurgula covers saving the passage
+        val old = compose.onNodeWithText("Vurgula").performScrollTo()
             .fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action!!
         val replacement = initial.copy(sessionId = "replacement-selection")
         compose.runOnIdle { preview = replacement }
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Vurgula").performScrollTo().assertIsDisplayed()
         compose.runOnIdle { old() }
         assertTrue(accepted.isEmpty())
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").performClick()
+        compose.onNodeWithText("Vurgula").performClick()
         assertEquals(listOf(replacement), accepted)
         val malformed = range.copy(segments = range.segments.reversed())
         compose.runOnIdle { preview = initial.copy(sourceAnchor = malformed, sessionId = "invalid-selection") }
-        compose.onNodeWithText("Vurgu ve bağlı not ekle").assertDoesNotExist()
-        compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed()
+        compose.onNodeWithText("Vurgula").assertDoesNotExist()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist()
+        compose.onNodeWithText("Kopyala").assertIsDisplayed()
     }
 
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
@@ -192,9 +192,9 @@ class SelectedTextDialogTest {
         }
         compose.onNodeWithText("Seçili metin").assertIsDisplayed()
         compose.onNodeWithText(selected).assertExists()
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed()
-        compose.onNodeWithText("Kelime formuna aktar").assertDoesNotExist()
-        compose.onNodeWithText("Not taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Kopyala").assertIsDisplayed()
+        compose.onNodeWithText("Kelimelerime ekle").assertDoesNotExist()
+        compose.onNodeWithText("Not al").assertDoesNotExist()
         compose.onNodeWithText("Kaydet").assertDoesNotExist()
         compose.onNodeWithText("Not ekle").assertDoesNotExist()
         compose.onNodeWithText("Kapat").assertIsDisplayed().performClick()
@@ -215,9 +215,9 @@ class SelectedTextDialogTest {
         compose.onNodeWithText("Metin gösterilemedi").assertIsDisplayed()
         compose.onNodeWithText("Metin alınamadı. Yeniden seçip deneyin.").assertIsDisplayed()
         compose.onNodeWithText(selected).assertDoesNotExist()
-        compose.onNodeWithText("Panoya kopyala").assertDoesNotExist()
-        compose.onNodeWithText("Kelime formuna aktar").assertDoesNotExist()
-        compose.onNodeWithText("Not taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Kopyala").assertDoesNotExist()
+        compose.onNodeWithText("Kelimelerime ekle").assertDoesNotExist()
+        compose.onNodeWithText("Not al").assertDoesNotExist()
         compose.onNodeWithText("Kapat").performClick()
         compose.onNodeWithText("Metin gösterilemedi").assertDoesNotExist()
     }
@@ -236,11 +236,11 @@ class SelectedTextDialogTest {
             }
         }
         assertFalse(clipboard.hasPrimaryClip())
-        compose.onNodeWithText("Panoya kopyala").performClick()
-        compose.onNodeWithText("Panoya kopyalandı.").assertIsDisplayed()
+        compose.onNodeWithText("Kopyala").performClick()
+        compose.onNodeWithText("Kopyalandı").assertIsDisplayed()
         assertEquals(selected, clipboard.primaryClip!!.getItemAt(0).text.toString())
         compose.onNodeWithText("Kapat").performClick()
-        compose.onNodeWithText("Panoya kopyala").assertDoesNotExist()
+        compose.onNodeWithText("Kopyala").assertDoesNotExist()
     }
 
     @Test @Config(qualifiers = "w480dp-h320dp-land-mdpi")
@@ -256,12 +256,12 @@ class SelectedTextDialogTest {
             SelectedTextDialog(SelectedTextPreview.Ready(selected), { closed++ }, { copied++ },
                 { transferredWord++ }, { transferredNote++ })
         } }
-        compose.onNodeWithText("Kelime formuna aktar").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Kelimelerime ekle").performScrollTo().assertIsDisplayed().performClick()
         assertEquals(1, transferredWord)
-        compose.onNodeWithText("Not taslağına aktar").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithText("Not al").performScrollTo().assertIsDisplayed().performClick()
         assertEquals(1, transferredNote)
         assertEquals(0, copied)
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed()
+        compose.onNodeWithText("Kopyala").assertIsDisplayed()
         compose.onNodeWithText("Kapat").assertIsDisplayed().performClick()
         assertEquals(1, closed)
     }
@@ -274,13 +274,13 @@ class SelectedTextDialogTest {
         compose.setContent { YaprakTheme {
             SelectedTextDialog(preview, { preview = null }, {}, onTransferNote = { transfers++ })
         } }
-        compose.onNodeWithText("Not taslağına aktar").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Not al").assertIsDisplayed().performClick()
         assertEquals(1, transfers)
         assertFalse(clipboard.hasPrimaryClip())
         compose.runOnIdle { preview = SelectedTextPreview.Ready("  \n ") }
-        compose.onNodeWithText("Not taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Not al").assertDoesNotExist()
         compose.runOnIdle { preview = SelectedTextPreview.Ready("a".repeat(2001)) }
-        compose.onNodeWithText("Not taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Not al").assertDoesNotExist()
     }
 
     @Test fun `passage transfer requires matched source and never saves or copies by itself`() {
@@ -292,17 +292,17 @@ class SelectedTextDialogTest {
         compose.setContent { YaprakTheme {
             SelectedTextDialog(preview, { preview = null }, {}, onTransferPassage = { transfers++ })
         } }
-        compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist()
         compose.runOnIdle { preview = SelectedTextPreview.Ready("Leaf", sourceAnchor = anchor) }
-        compose.onNodeWithText("Pasaj taslağına aktar").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Pasaja ekle").assertIsDisplayed().performClick()
         assertEquals(1, transfers)
         assertFalse(clipboard.hasPrimaryClip())
         compose.runOnIdle { preview = SelectedTextPreview.Ready("Leaf", sourceAnchor = anchor.copy(end = 5)) }
-        compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist()
         compose.runOnIdle { preview = SelectedTextPreview.Ready("L".repeat(4097),
             sourceAnchor = anchor.copy(end = 4097)) }
-        compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist()
         compose.runOnIdle { preview = SelectedTextPreview.Error("Seçim alınamadı") }
-        compose.onNodeWithText("Pasaj taslağına aktar").assertDoesNotExist()
+        compose.onNodeWithText("Pasaja ekle").assertDoesNotExist()
     }
 }

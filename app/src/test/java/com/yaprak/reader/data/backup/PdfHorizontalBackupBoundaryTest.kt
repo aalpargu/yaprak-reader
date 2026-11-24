@@ -21,8 +21,11 @@ class PdfHorizontalBackupBoundaryTest {
         "book_epub_text_alignment_overrides", "book_epub_reading_mode_overrides", "book_cbz_view_preferences",
         "book_epub_margin_overrides", "book_epub_line_spacing_overrides", "book_epub_spacing_overrides",
         "saved_words", "book_notes", "epub_passages", "book_organizations", "book_completion_events",
-        "book_covers", "reading_duration_receipts", "book_pdf_view_preferences", "book_pdf_navigation_preferences",
+        "book_covers", "reading_duration_receipts", "book_pdf_view_preferences", "book_pdf_navigation_preferences", "reading_page_receipts", "pdf_ink_strokes",
         "epub_range_passages", "pdf_annotations", "word_review_events", "word_schedules")
+    /** Archives older than 27 never carried page receipts; strip the table to forge an honest old shape. */
+    private fun old(bytes: ByteArray): ByteArray = JSONObject(bytes.toString(Charsets.UTF_8))
+        .apply { getJSONObject("tables").remove("pdf_ink_strokes"); getJSONObject("tables").remove("reading_page_receipts") }.toString().toByteArray()
     private fun records(mode: Any = "HORIZONTAL_SCROLL"): BackupRecords {
         val book = ArchiveBook(id, "$id.pdf", "PDF", 10, hash)
         val rows = tableNames.associateWith { emptyList<JSONObject>() }.toMutableMap()
@@ -37,29 +40,29 @@ class PdfHorizontalBackupBoundaryTest {
     @Test fun currentHeaderAndRecordsRoundTripExactHorizontalModeAndUnrelatedFields() {
         val records = records()
         val bytes = BackupRecordsCodec.encode(records)
-        val decoded = BackupRecordsCodec.decode(bytes, 24)
+        val decoded = BackupRecordsCodec.decode(old(bytes), 24)
         assertEquals("HORIZONTAL_SCROLL", decoded.rows.getValue("book_pdf_navigation_preferences").single().getString("mode"))
         val view = decoded.rows.getValue("book_pdf_view_preferences").single()
         assertEquals(8, view.getInt("horizontalPercent")); assertEquals(12, view.getInt("verticalPercent"))
         assertEquals("WIDTH", view.getString("fitMode")); assertEquals(1, view.getInt("doublePagePreferred"))
         val manifest = BackupRecordsCodec.encodeManifest(records, bytes, hash)
-        assertEquals(26, BackupRecordsCodec.decodeManifest(manifest).formatVersion)
-        assertEquals(26, JSONObject(manifest.toString(Charsets.UTF_8)).getInt("databaseVersion"))
+        assertEquals(28, BackupRecordsCodec.decodeManifest(manifest).formatVersion)
+        assertEquals(28, JSONObject(manifest.toString(Charsets.UTF_8)).getInt("databaseVersion"))
     }
     @Test fun horizontalRecordsUnderEveryPreviouslyCapableHeaderFailRatherThanSilentlyChangingMode() {
         val bytes = BackupRecordsCodec.encode(records())
         for (version in 21..23) {
-            val problem = runCatching { BackupRecordsCodec.decode(bytes, version) }.exceptionOrNull()
+            val problem = runCatching { BackupRecordsCodec.decode(old(bytes), version) }.exceptionOrNull()
             assertEquals(BackupFailure.INVALID_ARCHIVE, (problem as BackupProblem).reason)
         }
     }
     @Test fun oldPagedAndVerticalRecordsRemainValidAndUnknownOrNonTextModesFail() {
         for (mode in listOf("PAGED", "VERTICAL_SCROLL")) for (version in 21..24) {
-            val decoded = BackupRecordsCodec.decode(BackupRecordsCodec.encode(records(mode)), version)
+            val decoded = BackupRecordsCodec.decode(old(BackupRecordsCodec.encode(records(mode))), version)
             assertEquals(mode, decoded.rows.getValue("book_pdf_navigation_preferences").single().getString("mode"))
         }
         for (mode in listOf<Any>("horizontal", "", "SIDEWAYS", 1, JSONObject.NULL)) {
-            val problem = runCatching { BackupRecordsCodec.decode(BackupRecordsCodec.encode(records(mode)), 24) }.exceptionOrNull()
+            val problem = runCatching { BackupRecordsCodec.decode(old(BackupRecordsCodec.encode(records(mode))), 24) }.exceptionOrNull()
             assertEquals(BackupFailure.INVALID_ARCHIVE, (problem as BackupProblem).reason)
         }
     }
@@ -74,7 +77,7 @@ class PdfHorizontalBackupBoundaryTest {
                 1 -> tables.getJSONArray("books").getJSONObject(0).put("format", "EPUB").put("pageCount", JSONObject.NULL)
                 2 -> nav.put(JSONObject(nav.getJSONObject(0).toString()))
             }
-            val problem = runCatching { BackupRecordsCodec.decode(json.toString().toByteArray(), 24) }.exceptionOrNull()
+            val problem = runCatching { BackupRecordsCodec.decode(old(json.toString().toByteArray()), 24) }.exceptionOrNull()
             assertEquals(BackupFailure.INVALID_ARCHIVE, (problem as BackupProblem).reason)
         }
     }

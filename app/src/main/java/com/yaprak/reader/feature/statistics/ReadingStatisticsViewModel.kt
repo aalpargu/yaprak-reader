@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-internal data class ReadingCalendarDay(val date: LocalDate, val elapsedMillis: Long?)
+internal data class ReadingCalendarDay(val date: LocalDate, val elapsedMillis: Long?, val pages: Int? = null)
 internal data class ReadingStatisticsState(
     val today: LocalDate,
     val zoneId: String,
@@ -38,6 +38,9 @@ internal data class ReadingStatisticsState(
         date >= today.minusDays(6) && date <= today
     }.orEmpty()
     val lastSevenMillis: Long get() = lastSevenDays.sumOf { it.elapsedMillis }
+    /** Pages counted in the last seven days; null when no day in that range has page records. */
+    val lastSevenPages: Int? get() = lastSevenDays.mapNotNull { it.pages }.takeIf { it.isNotEmpty() }?.sum()
+    val todayPages: Int? get() = snapshot?.days?.firstOrNull { it.localDate == today.toString() }?.pages
     /** All seven calendar days are in the denominator, including days without a saved receipt. */
     val dailyAverageMillis: Long get() = lastSevenMillis / 7
     val readingDaysLastSeven: Int get() = lastSevenDays.count { it.elapsedMillis > 0 }

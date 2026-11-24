@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -34,14 +36,17 @@ internal fun BookCoverActions(
     val actionsEnabled = enabled && currentState !is CoverEditState.Selecting &&
         currentState !is CoverEditState.Changing && currentState !is CoverEditState.Resetting
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.custom_cover_title), style = MaterialTheme.typography.labelLarge)
-        LibraryBookCover(book, Modifier.fillMaxWidth().height(160.dp), compact = true, coverLoader = coverLoader)
-        TextButton(onClick = onChange, enabled = actionsEnabled) { Text(stringResource(R.string.custom_cover_change)) }
-        if (book.customCover != null && onReset != null) {
-            TextButton(onClick = onReset, enabled = actionsEnabled) { Text(stringResource(R.string.custom_cover_reset)) }
+        androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            LibraryBookCover(book, Modifier.size(72.dp, 100.dp), compact = true, coverLoader = coverLoader)
+            Column(Modifier.padding(start = 12.dp)) {
+                Text(book.authors ?: stringResource(R.string.unknown_author), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = onChange, enabled = actionsEnabled) { Text(stringResource(R.string.custom_cover_change)) }
+                if (book.customCover != null && onReset != null) {
+                    TextButton(onClick = onReset, enabled = actionsEnabled) { Text(stringResource(R.string.custom_cover_reset)) }
+                }
+            }
         }
-        Text(stringResource(R.string.custom_cover_help), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
         val message = when (currentState) {
             is CoverEditState.Selecting -> stringResource(R.string.custom_cover_selecting)
             is CoverEditState.Changing -> stringResource(R.string.custom_cover_changing)

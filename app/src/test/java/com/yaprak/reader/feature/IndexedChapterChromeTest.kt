@@ -47,12 +47,11 @@ class IndexedChapterChromeTest {
             IndexedChapterFailure.NAVIGATION to R.string.indexed_chapter_navigation_error,
             IndexedChapterFailure.INTERRUPTED to R.string.indexed_chapter_interrupted)) {
             compose.runOnIdle { failure.value = reason }
-            compose.onNodeWithText(compose.activity.getString(resource)).performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText(compose.activity.getString(R.string.indexed_chapter_retry)).performScrollTo().assertIsDisplayed().performClick()
+            compose.readerToolNodeWithText(compose.activity.getString(resource)).performScrollTo().assertIsDisplayed()
+            compose.readerToolNodeWithText(compose.activity.getString(R.string.indexed_chapter_retry)).performScrollTo().assertIsDisplayed().performClick()
         }
         compose.onNodeWithText("Bu bölüm yüklenemedi. Kitaplığa dönüp yeniden açmayı dene.").assertDoesNotExist()
-        compose.onNodeWithText("Sonraki").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(4, retry); assertEquals(0, reopen); assertEquals(1, next)
+        compose.waitForIdle(); assertEquals(4, retry); assertEquals(0, reopen); assertEquals(0, next)
     }
 
     @Test @Config(qualifiers = "w640dp-h240dp-land-mdpi")
@@ -64,10 +63,9 @@ class IndexedChapterChromeTest {
             ReaderChrome(ReaderState.Ready(session), false, false, false, {}, {}, {}, {}, {}, {}, {},
                 indexedChapterFailure = IndexedChapterFailure.SOURCE, onRetryIndexedChapter = { retry++ })
         } }
-        compose.onNodeWithText(compose.activity.getString(R.string.indexed_chapter_source_error)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(compose.activity.getString(R.string.indexed_chapter_retry)).performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(1, retry)
-        compose.onNodeWithText("Kitaplık").performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(compose.activity.getString(R.string.indexed_chapter_source_error)).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(compose.activity.getString(R.string.indexed_chapter_retry)).performScrollTo().assertIsDisplayed().performClick()
+        compose.waitForIdle(); assertEquals(1, retry)
     }
 
     @Test fun `verification shows status without retry and settled hidden reader removes transient banner`() {
@@ -76,7 +74,7 @@ class IndexedChapterChromeTest {
             ReaderChrome(ReaderState.Ready(session), false, false, false, {}, {}, {}, {}, {}, {}, {},
                 indexedChapterVerifying = verifying.value)
         } }
-        compose.onNodeWithText(compose.activity.getString(R.string.indexed_chapter_verifying)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.indexed_chapter_verifying)).assertIsDisplayed()
         compose.onNodeWithText(compose.activity.getString(R.string.indexed_chapter_retry)).assertDoesNotExist()
         compose.runOnIdle { verifying.value = false }
         compose.onNodeWithText(compose.activity.getString(R.string.indexed_chapter_verifying)).assertDoesNotExist()

@@ -16,6 +16,9 @@ class RoomLibraryRepository(private val dao: BookDao,
         rows.map { it.book.toBook().copy(lastReadAt = it.lastReadAt,
             organization = it.organization?.toOrganization() ?: BookOrganization(), customCover = it.customCover?.toCover()) }
     }
+    override fun observeProgress() = dao.observeProgress().map { rows ->
+        rows.mapNotNull { row -> displayProgressPercent(row.format, row.pageCount, row.locatorJson)?.let { row.bookId to it } }.toMap()
+    }
     override suspend fun findByHash(sha256: String) = dao.findWithOrganizationByHash(sha256)?.let { row ->
         row.book.toBook().copy(organization = row.organization?.toOrganization() ?: BookOrganization(), customCover = row.customCover?.toCover())
     }

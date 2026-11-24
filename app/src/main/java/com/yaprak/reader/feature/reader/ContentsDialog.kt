@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.background
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -38,7 +39,8 @@ internal fun ContentsDialog(contents: BookContents, onSelect: (String) -> Boolea
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun ContentsDialogBody(contents: BookContents, onSelect: (String) -> Boolean, onDismiss: () -> Unit) {
+internal fun ContentsDialogBody(contents: BookContents, onSelect: (String) -> Boolean, onDismiss: () -> Unit,
+    currentId: String? = null) {
     var rejected by remember(contents) { mutableStateOf(false) }
     var query by remember(contents) { mutableStateOf("") }
     var collapsedIds by remember(contents) { mutableStateOf(emptySet<String>()) }
@@ -50,6 +52,11 @@ internal fun ContentsDialogBody(contents: BookContents, onSelect: (String) -> Bo
     }
     val listState = remember(contents) { LazyListState() }
     val scope = rememberCoroutineScope()
+    // Open at the chapter being read, a few rows below the top so its neighbours stay visible.
+    androidx.compose.runtime.LaunchedEffect(contents, currentId) {
+        val index = currentId?.let { id -> visibleEntries.indexOfFirst { it.id == id } } ?: -1
+        if (index > 2) listState.scrollToItem((listState.layoutInfo.totalItemsCount - visibleEntries.size + index - 2).coerceAtLeast(0))
+    }
     // One bounded scroll surface keeps search, fold controls and long errors accessible.
     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 440.dp).testTag("contents-list"), state = listState,
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -90,7 +97,11 @@ internal fun ContentsDialogBody(contents: BookContents, onSelect: (String) -> Bo
             if (visibleEntries.isEmpty()) item(key = "contents-header-no-matches") {
                 Text("Eşleşen başlık bulunamadı.", modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             } else items(visibleEntries, key = { "entry:${it.id}" }) { entry ->
-                Row(Modifier.fillMaxWidth().padding(start = (entry.depth.coerceIn(0, 4) * 12).dp),
+                val here = entry.id == currentId
+                Row(Modifier.fillMaxWidth()
+                    .then(if (here) Modifier.background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.small)
+                        .semantics { stateDescription = "Şu an bu bölümdesin" } else Modifier)
+                    .padding(start = (entry.depth.coerceIn(0, 4) * 12).dp + (if (here) 8.dp else 0.dp)),
                     verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).testTag("contents-entry-${entry.id}")
                         .clickable(enabled = entry.navigable, role = Role.Button, onClickLabel = "Başlığa git") {
@@ -99,8 +110,11 @@ internal fun ContentsDialogBody(contents: BookContents, onSelect: (String) -> Bo
                                 scope.launch { listState.scrollToItem(0) }
                             }
                         }.padding(top = 14.dp, end = 8.dp, bottom = 14.dp)) {
+                        if (here) Text("Şu an buradasın", style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary)
                         Text(entry.title, style = MaterialTheme.typography.bodyLarge,
-                            color = if (entry.navigable) MaterialTheme.colorScheme.onSurface
+                            fontWeight = if (here) androidx.compose.ui.text.font.FontWeight.SemiBold else null,
+                            color = if (here) MaterialTheme.colorScheme.onPrimaryContainer else if (entry.navigable) MaterialTheme.colorScheme.onSurface
                                 else MaterialTheme.colorScheme.onSurfaceVariant)
                         if (!entry.navigable) Text("Bu başlığa gidilemiyor", style = MaterialTheme.typography.labelSmall)
                     }

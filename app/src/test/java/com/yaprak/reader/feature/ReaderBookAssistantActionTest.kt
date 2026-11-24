@@ -12,7 +12,7 @@ class ReaderBookAssistantActionTest {
         for (format in BookFormat.entries) {
             val original = book.copy(format = format); val session = Any(); val surface = Any()
             val action = ReaderBookAssistantAction.create(original, session, surface, 7)
-            if (format == BookFormat.CBZ) { assertNull(action); continue }
+            if (format.comic) { assertNull(action); continue } // CBZ and CBR have no book text
             val opened = mutableListOf<BookTextScope>()
             assertTrue(action!!.open(original.copy(lastReadAt = 99), session, surface, 7, true) { opened += it })
             assertFalse(action.open(original, session, surface, 7, true) { opened += it })

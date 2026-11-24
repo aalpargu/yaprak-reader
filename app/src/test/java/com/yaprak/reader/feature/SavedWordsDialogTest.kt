@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -21,6 +22,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.text.AnnotatedString
 import com.yaprak.reader.domain.library.Book
@@ -31,6 +33,7 @@ import com.yaprak.reader.feature.vocabulary.SavedWordsDialog
 import com.yaprak.reader.feature.vocabulary.SavedWordsRoute
 import com.yaprak.reader.feature.vocabulary.SavedWordsState
 import com.yaprak.reader.feature.vocabulary.SavedWordSort
+import com.yaprak.reader.feature.vocabulary.RecoveredWordEdit
 import com.yaprak.reader.ui.theme.YaprakTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
@@ -50,6 +53,70 @@ import org.robolectric.annotation.GraphicsMode
 class SavedWordsDialogTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val entry = SavedWord("one", "leaf", "yaprak", 1)
+
+    @Test fun bothProtectedWordEditsAreVisibleAndDiscardingOneCannotHideOrConsumeTheOther() {
+        val first = RecoveredWordEdit("Exact A", "Tam A")
+        val second = RecoveredWordEdit("Exact B", "Tam B")
+        var state by mutableStateOf(SavedWordsState(entries = listOf(entry), loading = false, englishDraft = "Current draft",
+            turkishDraft = "Güncel taslak", recoveredEdit = first, additionalRecoveredEdit = second))
+        var discarded = 0
+        compose.setContent { YaprakTheme { SavedWordsDialog(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+            onDiscardRecoveredEdit = { expected -> when {
+                state.recoveredEdit === expected -> { discarded++; state = state.copy(recoveredEdit = null) }
+                state.additionalRecoveredEdit === expected -> { discarded++; state = state.copy(additionalRecoveredEdit = null) }
+                else -> Unit
+            } }) } }
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-additional-recovered-english"))
+        compose.onNodeWithTag("saved-word-additional-recovered-english").assertTextEquals("Exact B")
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-additional-recovered-discard"))
+        val retired = compose.onNodeWithTag("saved-word-additional-recovered-discard").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        compose.runOnIdle { state = state.copy(additionalRecoveredEdit = RecoveredWordEdit(second.english, second.turkish)) }
+        compose.waitForIdle(); compose.runOnIdle { retired() }; assertEquals(0, discarded)
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-recovered-discard"))
+        compose.onNodeWithTag("saved-word-recovered-discard").performClick(); assertEquals(1, discarded)
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-additional-recovered-turkish"))
+        compose.onNodeWithTag("saved-word-additional-recovered-turkish").assertIsDisplayed().assertTextEquals("Tam B")
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-edit-${entry.id}"))
+        compose.onNodeWithTag("saved-word-edit-${entry.id}").assertIsNotEnabled()
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-additional-recovered-discard"))
+        compose.onNodeWithTag("saved-word-additional-recovered-discard").performClick(); assertEquals(2, discarded)
+        assertEquals("Current draft", state.englishDraft); assertEquals("Güncel taslak", state.turkishDraft)
+        assertEquals(listOf(entry), state.entries)
+    }
+
+    @Test fun recoveredEditRemainsVisibleAfterTypingAndInAnotherEditorAndAnOldDiscardCannotConsumeItsReplacement() {
+        val firstRecovery = RecoveredWordEdit("  Old English edit  ", "  Eski Türkçe düzenleme  ")
+        var state by mutableStateOf(SavedWordsState(entries = listOf(entry), loading = false,
+            englishDraft = "New word", turkishDraft = "Yeni kelime", message = "Transient status", recoveredEdit = firstRecovery))
+        var discarded = 0
+        compose.setContent { YaprakTheme { SavedWordsDialog(state,
+            { state = state.copy(englishDraft = it, message = null) }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+            onDiscardRecoveredEdit = { expected ->
+                if (state.recoveredEdit === expected) { discarded++; state = state.copy(recoveredEdit = null) }
+            }) } }
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-recovered-discard"))
+        val retiredDiscard = compose.onNodeWithTag("saved-word-recovered-discard").fetchSemanticsNode()
+            .config[SemanticsActions.OnClick].action!!
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-english"))
+        compose.onNodeWithTag("saved-word-english").performTextReplacement("New word typed")
+        assertNull(state.message)
+        compose.onNodeWithTag("saved-words-list").performScrollToNode(hasTestTag("saved-word-recovered-english"))
+        compose.onNodeWithTag("saved-word-recovered-english").assertTextEquals("  Old English edit  ")
+        compose.onNodeWithTag("saved-word-recovered-turkish").assertTextEquals("  Eski Türkçe düzenleme  ")
+        val replacement = RecoveredWordEdit(firstRecovery.english, firstRecovery.turkish)
+        compose.runOnIdle { state = state.copy(recoveredEdit = replacement) }
+        compose.waitForIdle(); compose.runOnIdle { retiredDiscard() }
+        assertEquals(0, discarded); assertEquals(replacement, state.recoveredEdit)
+        compose.runOnIdle { state = state.copy(pendingEdit = entry, editEnglishDraft = "Current English", editTurkishDraft = "Güncel Türkçe") }
+        compose.onNodeWithTag("saved-words-list").assertDoesNotExist()
+        compose.onNodeWithTag("saved-word-edit-content").performScrollToNode(hasTestTag("saved-word-recovered-english"))
+        compose.onNodeWithTag("saved-word-recovered-english").assertIsDisplayed().assertTextEquals(firstRecovery.english)
+        compose.onNodeWithTag("saved-word-edit-content").performScrollToNode(hasTestTag("saved-word-recovered-discard"))
+        compose.onNodeWithTag("saved-word-recovered-discard").performClick()
+        assertEquals(1, discarded); assertNull(state.recoveredEdit)
+        assertEquals("New word typed", state.englishDraft); assertEquals("Yeni kelime", state.turkishDraft)
+        assertEquals("Current English", state.editEnglishDraft); assertEquals("Güncel Türkçe", state.editTurkishDraft)
+    }
 
     @Test fun `manual English and Turkish drafts are required before save`() {
         var state by mutableStateOf(SavedWordsState(loading = false))

@@ -82,7 +82,8 @@ class RoomLibraryNotesRepository(
                 if (!cursor.moveToNext()) break
                 ensureReadActive(caller)
                 val note = cursor.libraryNote()
-                if (!note.matchesTerms(terms)) continue
+                // Exports carry notes; plain highlights stay a reading-list feature for now.
+                if (note.highlightOnly || !note.matchesTerms(terms)) continue
                 val pageCount = if (cursor.isNull(9)) null else cursor.getLong(9).toInt()
                 val entry = LibraryNoteExportEntry(note, pageCount)
                 budget.add(entry)
@@ -151,7 +152,7 @@ private const val JOINED_NOTES = """
            'BOOK_NOTE' AS source, NULL AS sourceText, NULL AS resourceHref,
            NULL AS nodeTextSha256, NULL AS startOffset, NULL AS endOffset,
            0 AS revision, NULL AS highlightColor, NULL AS anchorVersion,
-           NULL AS anchorJson, NULL AS anchorKey, NULL AS selectionKey
+           NULL AS anchorJson, NULL AS anchorKey, NULL AS selectionKey, 0 AS highlightOnly
     FROM book_notes AS note INNER JOIN books AS book
         ON book.id = note.bookId AND book.sha256 = note.contentSha256
     UNION ALL
@@ -159,27 +160,25 @@ private const val JOINED_NOTES = """
            book.format, passage.attachedNote, passage.createdAt, NULL, book.pageCount,
            'EPUB_PASSAGE', passage.text, passage.resourceHref, passage.nodeTextSha256,
            passage.startOffset, passage.endOffset, passage.revision, passage.highlightColor,
-           passage.anchorVersion, NULL, NULL, NULL
+           passage.anchorVersion, NULL, NULL, NULL, passage.attachedNote IS NULL
     FROM epub_passages AS passage INNER JOIN books AS book
         ON book.id = passage.bookId AND book.sha256 = passage.contentSha256
-    WHERE passage.attachedNote IS NOT NULL
     UNION ALL
     SELECT passage.id, passage.bookId, passage.contentSha256, book.title, book.authors,
            book.format, passage.attachedNote, passage.createdAt, NULL, book.pageCount,
            'EPUB_PASSAGE', passage.text, passage.resourceHref, NULL, NULL, NULL,
-           passage.revision, passage.highlightColor, passage.anchorVersion, passage.anchorJson, passage.anchorKey, NULL
+           passage.revision, passage.highlightColor, passage.anchorVersion, passage.anchorJson, passage.anchorKey, NULL,
+           passage.attachedNote IS NULL
     FROM epub_range_passages AS passage INNER JOIN books AS book
         ON book.id = passage.bookId AND book.sha256 = passage.contentSha256
-    WHERE passage.attachedNote IS NOT NULL
     UNION ALL
     SELECT annotation.id, annotation.bookId, annotation.contentSha256, book.title, book.authors,
            book.format, annotation.attachedNote, annotation.createdAt, annotation.pageIndex, book.pageCount,
            'PDF_ANNOTATION', annotation.text, NULL, NULL, NULL, NULL,
            annotation.revision, annotation.highlightColor, annotation.anchorVersion, annotation.anchorJson,
-           annotation.anchorKey, annotation.selectionKey
+           annotation.anchorKey, annotation.selectionKey, annotation.attachedNote IS NULL
     FROM pdf_annotations AS annotation INNER JOIN books AS book
         ON book.id = annotation.bookId AND book.sha256 = annotation.contentSha256
-    WHERE annotation.attachedNote IS NOT NULL
     )
 """
 
@@ -231,7 +230,9 @@ private suspend fun ensureReadActive(caller: CoroutineContext) {
 }
 
 private fun Cursor.libraryNote(): LibraryNote {
-    valid(columnCount == 22)
+    valid(columnCount == 23)
+    valid(getType(22) == Cursor.FIELD_TYPE_INTEGER)
+    val highlightOnly = when (getLong(22)) { 0L -> false; 1L -> true; else -> throw LibraryNotesSourceException() }
     val id = text(0, 1000)
     val bookId = text(1, 1000)
     val hash = text(2, 64).also { valid(contentHash.matches(it)) }
@@ -247,7 +248,8 @@ private fun Cursor.libraryNote(): LibraryNote {
             "DOCX" -> BookFormat.DOCX
         else -> throw LibraryNotesSourceException()
     }
-    val noteText = text(6, MAX_BOOK_NOTE_LENGTH)
+    // A highlight without a note has no note text; it is shown and searched by its highlighted quote.
+    val noteText = if (highlightOnly) { valid(isNull(6)); "" } else text(6, MAX_BOOK_NOTE_LENGTH)
     valid(!isNull(7) && getType(7) == Cursor.FIELD_TYPE_INTEGER)
     val createdAt = getLong(7)
     val pageCount = if (isNull(9)) null else {
@@ -271,6 +273,7 @@ private fun Cursor.libraryNote(): LibraryNote {
     valid(getType(16) == Cursor.FIELD_TYPE_INTEGER)
     val revision = getLong(16).also { valid(it >= 0) }
     if (source == LibraryNoteSource.BOOK_NOTE) {
+        valid(!highlightOnly)
         valid((11..15).all { isNull(it) } && revision == 0L && (17..21).all { isNull(it) })
         return LibraryNote(id, bookId, hash, title, authors, format, noteText, createdAt, page)
     }
@@ -278,9 +281,9 @@ private fun Cursor.libraryNote(): LibraryNote {
         valid(format == BookFormat.PDF && page != null && (12..15).all { isNull(it) })
         val annotation = try { PdfAnnotationSql.read(this, "sourceText", "text", "pdfPageIndex") }
             catch (failure: Exception) { throw LibraryNotesSourceException(failure) }
-        return LibraryNote(id, bookId, hash, title, authors, format, noteText, createdAt, page,
+        return LibraryNote(id, bookId, hash, title, authors, format, if (highlightOnly) annotation.text else noteText, createdAt, page,
             source, annotation.text, sourceRevision = annotation.revision,
-            pdfSourceAnchor = annotation.anchor, pdfHighlightColor = annotation.highlightColor)
+            pdfSourceAnchor = annotation.anchor, pdfHighlightColor = annotation.highlightColor, highlightOnly = highlightOnly)
     }
     valid(isNull(21))
     valid(format == BookFormat.EPUB && page == null && getType(18) == Cursor.FIELD_TYPE_INTEGER)
@@ -288,7 +291,7 @@ private fun Cursor.libraryNote(): LibraryNote {
     valid(version == 1L || version == 2L)
     val quote = text(11, MAX_EPUB_PASSAGE_LENGTH)
     valid(noteText.length <= MAX_EPUB_ATTACHED_NOTE_LENGTH)
-    valid(isWellFormedEpubAnnotationText(quote) && isWellFormedEpubAnnotationText(noteText))
+    valid(isWellFormedEpubAnnotationText(quote) && (highlightOnly || isWellFormedEpubAnnotationText(noteText)))
     val href = text(12, 4096).also { valid(safePassageHref(it)) }
     val anchor = if (version == 1L) {
         valid(isNull(19) && isNull(20))
@@ -305,8 +308,8 @@ private fun Cursor.libraryNote(): LibraryNote {
     val color = if (isNull(17)) null else {
         EpubHighlightColor.entries.singleOrNull { it.name == text(17, 20) } ?: throw LibraryNotesSourceException()
     }
-    return LibraryNote(id, bookId, hash, title, authors, format, noteText, createdAt, null,
-        source, quote, anchor, revision, color)
+    return LibraryNote(id, bookId, hash, title, authors, format, if (highlightOnly) quote else noteText, createdAt, null,
+        source, quote, anchor, revision, color, highlightOnly = highlightOnly)
 }
 
 private fun safePassageHref(href: String): Boolean = try {

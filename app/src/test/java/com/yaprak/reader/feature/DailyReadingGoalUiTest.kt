@@ -160,10 +160,10 @@ class DailyReadingGoalUiTest {
         }
         val remaining = text(R.string.daily_goal_remaining, text(R.string.reading_statistics_under_second))
         scrollText(remaining).assertIsDisplayed(); readable(remaining)
-        scrollTag("statistics-goal-open").assertIsDisplayed()
+        scrollTag("statistics-goal-open").performScrollTo().assertIsDisplayed()
         readable(text(R.string.daily_goal_edit), "statistics-goal-open")
         compose.onNodeWithTag("statistics-back").assertIsDisplayed().assertIsEnabled()
-        readable(text(R.string.reading_statistics_back), "statistics-back")
+        compose.onNodeWithContentDescription(text(R.string.reading_statistics_back)).assertIsDisplayed()
         capture("daily-goal-panel-double-type", false)
     }
 

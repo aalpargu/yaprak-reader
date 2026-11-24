@@ -1,0 +1,10 @@
+﻿<resources>
+    <!-- Dark system setting: no white flash before Compose draws, and light status-bar icons. -->
+    <style name="Theme.Yaprak" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#151C18</item>
+        <item name="android:colorAccent">#A1D1B9</item>
+    </style>
+</resources>

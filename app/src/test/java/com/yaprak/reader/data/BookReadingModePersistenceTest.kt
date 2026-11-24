@@ -151,9 +151,9 @@ class BookReadingModePersistenceTest {
             val baseline = version23(name)
             assertEquals(23, baseline.size)
             Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-                .addMigrations(LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build().useDatabase { db ->
+                .addMigrations(LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build().useDatabase { db ->
                     val sql = db.openHelper.writableDatabase
-                    assertEquals(26, sql.version)
+                    assertEquals(28, sql.version)
                     baseline.forEach { (table, expected) -> assertEquals(table, expected, rows(sql.query("SELECT * FROM $table"))) }
                     sql.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
                     val repository = RoomBookReadingModeRepository(db)

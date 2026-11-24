@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.assertTextContains
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -47,9 +48,9 @@ class ReadingStreakUiTest {
     private fun native(name: String) {
         compose.runOnUiThread { RuntimeEnvironment.setFontScale(2f) }; compose.activityRule.scenario.recreate()
         compose.setContent { YaprakTheme { ReadingStatisticsScreen(ready(), {}, {}) } }
-        readable("statistics-streak-current", compose.activity.getString(R.string.reading_streak_current, 2))
-        readable("statistics-streak-longest", compose.activity.getString(R.string.reading_streak_longest, 3))
-        readable("statistics-streak-last", compose.activity.getString(R.string.reading_streak_last, today.toString()))
+        scroll("statistics-streak-current").assertTextContains("2 gün")
+        scroll("statistics-streak-current").assertTextContains("En uzun: 3 gün")
+        scroll("statistics-reading-days").assertTextContains("Son: " + today.toString())
         compose.runOnIdle {
             val view = compose.activity.window.decorView; val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             try {
@@ -64,17 +65,14 @@ class ReadingStreakUiTest {
     @Test fun unavailableSnapshotCannotRetainAFormerSeriesAndReadyEmptyIsAnExplicitZero() {
         val original = ready(); var state by mutableStateOf(original)
         compose.setContent { YaprakTheme { ReadingStatisticsScreen(state, {}, {}) } }
-        scroll("statistics-streak-current").assertTextEquals(compose.activity.getString(R.string.reading_streak_current, 2))
+        scroll("statistics-streak-current").assertTextContains("2 gün")
         for (gated in listOf(original.copy(active = false), original.copy(loading = true),
             original.copy(failure = ReadingDurationFailure.RECOVERY), original.copy(snapshot = null))) {
             compose.runOnIdle { state = gated }
             compose.onNodeWithTag("statistics-streak-current").assertDoesNotExist()
-            compose.onNodeWithTag("statistics-streak-longest").assertDoesNotExist()
-            compose.onNodeWithTag("statistics-streak-last").assertDoesNotExist()
         }
         compose.runOnIdle { state = original.copy(snapshot = ReadingDurationSnapshot(emptyList(), emptyList(), 0)) }
-        scroll("statistics-streak-current").assertTextEquals(compose.activity.getString(R.string.reading_streak_current, 0))
-        scroll("statistics-streak-longest").assertTextEquals(compose.activity.getString(R.string.reading_streak_longest, 0))
-        compose.onNodeWithTag("statistics-streak-last").assertDoesNotExist()
+        scroll("statistics-streak-current").assertTextContains("0 gün")
+        scroll("statistics-streak-current").assertTextContains("En uzun: 0 gün")
     }
 }

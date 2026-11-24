@@ -21,11 +21,11 @@ internal class DocumentPdfContentsNavigator(
     private val validateBook: suspend (Book) -> Unit,
     private val read: (java.io.File, Int, () -> Unit) -> ParsedPdfOutline,
     private val active: () -> Boolean,
-    private val navigate: (Int) -> Boolean,
+    private val navigate: (PdfResumePosition) -> Boolean,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ContentsNavigator {
     private var generation = 0L
-    private var destinations: Map<String, Int> = emptyMap()
+    private var destinations: Map<String, PdfResumePosition> = emptyMap()
     override var contents = BookContents(emptyList())
         private set
 
@@ -48,12 +48,16 @@ internal class DocumentPdfContentsNavigator(
         }
         currentCoroutineContext().ensureActive()
         if (owner != generation || !active()) throw CancellationException("PDF contents request changed")
-        val targets = LinkedHashMap<String, Int>()
+        val targets = LinkedHashMap<String, PdfResumePosition>()
         val entries = parsed.rows.map { row ->
             val id = UUID.randomUUID().toString()
             val page = row.pageIndex?.takeIf { it in 0 until pageCount }
-            page?.let { targets[id] = it }
-            ContentsEntry(id, row.title, row.depth, page != null)
+            val point = page?.let {
+                if (row.anchorY != null && row.anchorY !in 0..1_000_000) null
+                else PdfResumePosition(it, row.anchorY)
+            }
+            point?.let { targets[id] = it }
+            ContentsEntry(id, row.title, row.depth, point != null)
         }
         destinations = Collections.unmodifiableMap(targets)
         return BookContents(Collections.unmodifiableList(entries), parsed.truncated).also { contents = it }

@@ -1,5 +1,9 @@
 package com.yaprak.reader.feature.vocabulary
 
+import android.os.Bundle
+import androidx.compose.foundation.lazy.LazyListState
+import com.yaprak.reader.feature.reader.rememberReaderPanelAdmission
+import com.yaprak.reader.feature.reader.ReaderDraftSnapshot
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,8 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,12 +32,14 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.NonSkippableComposable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import com.yaprak.reader.feature.reader.readerDialogReturnFocusTarget
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -50,11 +59,36 @@ import kotlin.random.Random
 @Composable
 internal fun SavedWordsRoute(book: Book, repository: SavedWordRepository, onDismiss: () -> Unit,
     prefillEnglish: String? = null, onCopy: ((text: String) -> Unit)? = null,
-    prefillTranslation: TranslatedWordDraft? = null) {
+    prefillTranslation: TranslatedWordDraft? = null,
+    restoration: Bundle? = null, onRestorationChange: (Bundle?) -> Unit = {}, canMutate: () -> Boolean = { true }, canInteract: () -> Boolean = canMutate, presentationEpoch: Long = 0L) {
     val model: SavedWordsViewModel = viewModel(key = "saved-words-${book.id}-${book.sha256}", factory = viewModelFactory {
         initializer { SavedWordsViewModel(book.id, book.sha256, repository) }
     })
     val state by model.state.collectAsStateWithLifecycle()
+    val admitted = rememberReaderPanelAdmission("$presentationEpoch:" + (state.pendingEdit?.let { "edit-${it.id}" }
+        ?: state.pendingDelete?.let { "delete-${it.id}" }
+        ?: state.pendingTranslationDraft?.let { "translation-${it.id}" }), canInteract)
+    fun fresh() = admitted() && canMutate()
+    val restored = remember(model) { ReaderDraftSnapshot.fromBundle(restoration) }
+    var restorationApplied by remember(model) { mutableStateOf(false) }
+    val baseListState = rememberLazyListState(restored?.listIndex ?: 0, restored?.listOffset ?: 0)
+    LaunchedEffect(model, state.loading, state.loadFailed, state.busy) {
+        if (!state.loading && !state.loadFailed && !state.busy && !restorationApplied) {
+            model.restorePresentation(restored)
+            restorationApplied = true
+        }
+    }
+    val snapshotChanged by rememberUpdatedState(onRestorationChange)
+    fun publishSnapshot() {
+        if (!restorationApplied) return
+        snapshotChanged(model.snapshot(baseListState.firstVisibleItemIndex, baseListState.firstVisibleItemScrollOffset).toBundle())
+    }
+    SideEffect { publishSnapshot() }
+    LaunchedEffect(baseListState) {
+        snapshotFlow { baseListState.firstVisibleItemIndex to baseListState.firstVisibleItemScrollOffset }
+            .collect { publishSnapshot() }
+    }
+
     LaunchedEffect(prefillEnglish, prefillTranslation) {
         if (prefillTranslation != null) model.offerTranslationDraft(prefillTranslation)
         else prefillEnglish?.let(model::prefillEnglish)
@@ -63,7 +97,7 @@ internal fun SavedWordsRoute(book: Book, repository: SavedWordRepository, onDism
         { id: String ->
             val current = model.state.value
             val entry = current.entries.singleOrNull { it.id == id }
-            check(entry != null && !current.loading && !current.loadFailed && !current.busy &&
+            check(fresh() && entry != null && !current.loading && !current.loadFailed && !current.busy &&
                 current.pendingEdit == null && current.pendingDelete == null && current.pendingTranslationDraft == null) {
                 "Saved word is unavailable for copying"
             }
@@ -72,32 +106,35 @@ internal fun SavedWordsRoute(book: Book, repository: SavedWordRepository, onDism
     }
     SavedWordsDialog(
         state = state,
-        onEditEnglish = model::editEnglish,
-        onEditTurkish = model::editTurkish,
-        onSave = model::add,
-        onReload = model::reload,
-        onRequestDelete = model::requestDelete,
-        onDelete = model::delete,
-        onCancelDelete = model::cancelDelete,
+        onEditEnglish = { if (admitted()) { model.editEnglish(it); publishSnapshot() } },
+        onEditTurkish = { if (admitted()) { model.editTurkish(it); publishSnapshot() } },
+        onSave = { if (fresh()) { model.add(); publishSnapshot() } },
+        onReload = { if (admitted()) { model.reload(); publishSnapshot() } },
+        onRequestDelete = { if (fresh()) { model.requestDelete(it); publishSnapshot() } },
+        onDelete = { if (fresh()) model.delete() },
+        onCancelDelete = { if (admitted()) { model.cancelDelete(); publishSnapshot() } },
         onDismiss = {
-            if (!state.busy) {
+            if (admitted() && !state.busy) {
                 if (prefillTranslation != null) model.dismissTranslationPrefill()
                 else if (prefillEnglish != null) model.clearAddDraft()
                 model.clearPresentation()
                 onDismiss()
             }
         },
-        onRequestEdit = model::requestEdit,
-        onEditSelectedEnglish = model::editSelectedEnglish,
-        onEditSelectedTurkish = model::editSelectedTurkish,
-        onSaveEdit = model::saveEdit,
-        onCancelEdit = model::cancelEdit,
-        onSearch = model::search,
-        onSort = model::sort,
+        onRequestEdit = { if (fresh()) { model.requestEdit(it); publishSnapshot() } },
+        onEditSelectedEnglish = { if (admitted()) { model.editSelectedEnglish(it); publishSnapshot() } },
+        onEditSelectedTurkish = { if (admitted()) { model.editSelectedTurkish(it); publishSnapshot() } },
+        onSaveEdit = { if (fresh()) { model.saveEdit(); publishSnapshot() } },
+        onCancelEdit = { if (admitted()) { model.cancelEdit(); publishSnapshot() } },
+        onSearch = { if (admitted()) { model.search(it); publishSnapshot() } },
+        onSort = { if (admitted()) { model.sort(it); publishSnapshot() } },
         onCopy = copyWord,
+        baseListState = baseListState,
+        canWrite = canMutate(),
         currentState = { model.state.value },
-        onUseTranslationDraft = { model.useTranslationDraft(it) },
-        onKeepExistingDraft = { model.keepExistingDraft(it) },
+        onUseTranslationDraft = { if (fresh()) { model.useTranslationDraft(it); publishSnapshot() } },
+        onKeepExistingDraft = { if (fresh()) { model.keepExistingDraft(it); publishSnapshot() } },
+        onDiscardRecoveredEdit = { if (admitted()) { model.discardRecoveredEdit(it); publishSnapshot() } },
     )
 }
 
@@ -126,10 +163,13 @@ internal fun SavedWordsDialog(
     practiceRandom: Random = Random.Default,
     onUseTranslationDraft: (TranslatedWordDraft) -> Unit = {},
     onKeepExistingDraft: (TranslatedWordDraft) -> Unit = {},
+    baseListState: LazyListState = rememberLazyListState(),
+    canWrite: Boolean = true,
+    onDiscardRecoveredEdit: (RecoveredWordEdit) -> Unit = {},
 ) {
     var sortExpanded by remember { mutableStateOf(false) }
     var copyFeedback by remember(state.entries) { mutableStateOf<SavedWordCopyFeedback?>(null) }
-    val copyEnabled = !state.loading && !state.loadFailed && !state.busy &&
+    val copyEnabled = canWrite && !state.loading && !state.loadFailed && !state.busy &&
         state.pendingEdit == null && state.pendingDelete == null && state.pendingTranslationDraft == null
     val latestState = rememberUpdatedState(state)
     val latestStateProvider = rememberUpdatedState(currentState)
@@ -158,14 +198,39 @@ internal fun SavedWordsDialog(
             change(normalized, entries)
             else normalized
     }
-    AlertDialog(
+    // Keep the caller and scroll position while only the child owns an input Window.
+    var suspendedChild by remember { mutableStateOf<String?>(null) }
+    var returnFocus by remember { mutableStateOf<String?>(null) }
+    val child = state.pendingEdit?.let { "edit-${it.id}" }
+        ?: state.pendingDelete?.let { "delete-${it.id}" }
+    LaunchedEffect(child) {
+        if (child != null) {
+            suspendedChild = child
+            returnFocus = null
+            sortExpanded = false
+        } else {
+            suspendedChild?.let { caller ->
+                val id = caller.substringAfter('-')
+                returnFocus = if (canWrite && !state.loading && !state.loadFailed &&
+                    state.visibleEntries.any { it.id == id }) caller else "close"
+            }
+            suspendedChild = null
+        }
+    }
+    if (state.pendingEdit == null && state.pendingDelete == null) AlertDialog(
         modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
         properties = DialogProperties(usePlatformDefaultWidth = false),
         onDismissRequest = onDismiss,
-        title = { Text(if (practiceWord != null) "Kelime tekrarı" else "Kaydedilen kelimeler") },
+        title = { Column { Text(if (practiceWord != null) "Kelime tekrarı" else "Kaydedilen kelimeler"); if (!canWrite) Text("Okuyucu henüz hazır değil. Bu pencereyi kapatıp hata bildiriminden yeniden deneyebilirsin.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) } },
         text = {
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp).testTag("saved-words-list"),
+            LazyColumn(state = baseListState, modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp).testTag("saved-words-list"),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                state.recoveredEdit?.let { recovered -> item {
+                    RecoveredWordEditContent(recovered, state.busy, onDiscardRecoveredEdit)
+                } }
+                state.additionalRecoveredEdit?.let { recovered -> item {
+                    RecoveredWordEditContent(recovered, state.busy, onDiscardRecoveredEdit, secondary = true)
+                } }
                 if (practiceWord != null) {
                     val position = practiceEntries.indexOfFirst { it.id == practiceWord.id }
                     item {
@@ -314,7 +379,7 @@ internal fun SavedWordsDialog(
                             supportingText = { Text("1–200 karakter") },
                         )
                     }
-                    item { Button(onClick = onSave, enabled = state.canSave) { Text("Kelimeyi kaydet") } }
+                    item { Button(onClick = onSave, enabled = canWrite && state.canSave) { Text("Kelimeyi kaydet") } }
                     item {
                         OutlinedTextField(
                             value = state.query,
@@ -390,15 +455,19 @@ internal fun SavedWordsDialog(
                                 }
                                 TextButton(
                                     onClick = { onRequestEdit(entry.id) },
-                                    enabled = !state.busy,
-                                    modifier = Modifier.semantics {
+                                    enabled = canWrite && !state.busy && state.recoveredEdit == null && state.additionalRecoveredEdit == null,
+                                    modifier = Modifier.testTag("saved-word-edit-${entry.id}")
+                                    .readerDialogReturnFocusTarget(returnFocus == "edit-${entry.id}") { returnFocus = null }
+                                    .semantics {
                                         contentDescription = "${index + 1}. kelime: ${entry.english}, düzenle"
                                     },
                                 ) { Text("Düzenle") }
                                 TextButton(
                                     onClick = { onRequestDelete(entry.id) },
-                                    enabled = !state.busy,
-                                    modifier = Modifier.semantics {
+                                    enabled = canWrite && !state.busy,
+                                    modifier = Modifier.testTag("saved-word-delete-${entry.id}")
+                                    .readerDialogReturnFocusTarget(returnFocus == "delete-${entry.id}") { returnFocus = null }
+                                    .semantics {
                                         contentDescription = "${index + 1}. kelime: ${entry.english}, sil"
                                     },
                                 ) { Text("Sil") }
@@ -409,22 +478,27 @@ internal fun SavedWordsDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss, enabled = !state.busy) { Text("Kapat") } },
+        confirmButton = { TextButton(onClick = onDismiss,
+            modifier = Modifier.testTag("saved-word-close")
+                .readerDialogReturnFocusTarget(returnFocus == "close") { returnFocus = null }, enabled = !state.busy) { Text("Kapat") } },
     )
     state.pendingDelete?.let { entry ->
         AlertDialog(
             modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
             properties = DialogProperties(usePlatformDefaultWidth = false),
             onDismissRequest = onCancelDelete,
-            title = { Text("Kelime silinsin mi?") },
+            title = { Column { Text("Kelime silinsin mi?"); if (!canWrite) Text("Okuyucu henüz hazır değil. Bu pencereyi kapatıp hata bildiriminden yeniden deneyebilirsin.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) } },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth().heightIn(max = 300.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.recoveredEdit?.let { RecoveredWordEditContent(it, state.busy, onDiscardRecoveredEdit) }
+                    state.additionalRecoveredEdit?.let { RecoveredWordEditContent(it, state.busy, onDiscardRecoveredEdit, secondary = true) }
                     Text(entry.english)
                     Text(entry.turkish)
                     state.message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             },
-            confirmButton = { TextButton(onClick = onDelete, enabled = !state.busy) { Text("Kelimeyi sil") } },
+            confirmButton = { TextButton(onClick = onDelete, enabled = canWrite && !state.busy) { Text("Kelimeyi sil") } },
             dismissButton = { TextButton(onClick = onCancelDelete, enabled = !state.busy) { Text("Vazgeç") } },
         )
     }
@@ -433,10 +507,16 @@ internal fun SavedWordsDialog(
             modifier = Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth(),
             properties = DialogProperties(usePlatformDefaultWidth = false),
             onDismissRequest = onCancelEdit,
-            title = { Text("Kelimeyi düzenle") },
+            title = { Column { Text("Kelimeyi düzenle"); if (!canWrite) Text("Okuyucu henüz hazır değil. Bu pencereyi kapatıp hata bildiriminden yeniden deneyebilirsin.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) } },
             text = {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 300.dp).testTag("saved-word-edit-content"),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.recoveredEdit?.let { recovered -> item {
+                        RecoveredWordEditContent(recovered, state.busy, onDiscardRecoveredEdit)
+                    } }
+                    state.additionalRecoveredEdit?.let { recovered -> item {
+                        RecoveredWordEditContent(recovered, state.busy, onDiscardRecoveredEdit, secondary = true)
+                    } }
                     item {
                         OutlinedTextField(
                             value = state.editEnglishDraft,
@@ -465,9 +545,30 @@ internal fun SavedWordsDialog(
                     if (state.busy) item { Text("İşlem sürüyor…", style = MaterialTheme.typography.bodySmall) }
                 }
             },
-            confirmButton = { TextButton(onClick = onSaveEdit, enabled = state.canUpdate) { Text("Kaydet") } },
+            confirmButton = { TextButton(onClick = onSaveEdit, enabled = canWrite && state.canUpdate) { Text("Kaydet") } },
             dismissButton = { TextButton(onClick = onCancelEdit, enabled = !state.busy) { Text("Vazgeç") } },
         )
+    }
+}
+
+@Composable
+private fun RecoveredWordEditContent(recovered: RecoveredWordEdit, busy: Boolean,
+    onDiscard: (RecoveredWordEdit) -> Unit, secondary: Boolean = false) {
+    key(recovered.id) {
+        val tag = if (secondary) "saved-word-additional-recovered" else "saved-word-recovered"
+        val admitted = rememberReaderPanelAdmission(recovered.id) { true }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(if (secondary) "Diğer korunan kelime taslağı" else "Korunan kelime düzenleme taslağı", style = MaterialTheme.typography.titleSmall)
+            Text("Başka bir kayıt düzenlemeden önce bu taslağı kopyalayıp sil.", style = MaterialTheme.typography.bodySmall)
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Column {
+                    Text(recovered.english, Modifier.testTag("$tag-english"))
+                    Text(recovered.turkish, Modifier.testTag("$tag-turkish"))
+                }
+            }
+            TextButton(onClick = { if (admitted() && !busy) onDiscard(recovered) }, enabled = !busy,
+                modifier = Modifier.testTag("$tag-discard")) { Text(if (secondary) "Diğer korunan taslağı sil" else "Korunan taslağı sil") }
+        }
     }
 }
 

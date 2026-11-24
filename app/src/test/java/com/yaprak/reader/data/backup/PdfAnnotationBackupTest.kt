@@ -49,7 +49,7 @@ class PdfAnnotationBackupTest {
             seed(source); val before = rows(source).map(JSONObject::toString)
             assertEquals(BackupResult.Created(1), source.backup(documents).create("content://backup"))
             val zip = entries(requireNotNull(documents.bytes)); val manifest = json(zip.getValue("manifest.json"))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertEquals(13, json(zip.getValue("records.json")).getJSONObject("tables").getJSONArray(table).getJSONObject(0).length())
             assertEquals(BackupResult.Restored(1), target.backup(documents).restore("content://backup"))
             assertEquals(before, rows(target).map(JSONObject::toString)); assertEquals(settings, target.settings.settings.value)

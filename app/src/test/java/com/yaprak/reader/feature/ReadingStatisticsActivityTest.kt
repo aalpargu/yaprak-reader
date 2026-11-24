@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.assertTextContains
 import android.content.ComponentName
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -58,7 +59,7 @@ class ReadingStatisticsActivityTest {
         assertEquals(2, model().state.value.snapshot!!.books.size)
         assertEquals(2, model().state.value.readingStreak!!.currentDays)
         assertEquals(2, model().state.value.readingStreak!!.longestDays)
-        scrollTag("statistics-streak-current").assertTextEquals(compose.activity.getString(R.string.reading_streak_current, 2))
+        scrollTag("statistics-streak-current").assertTextContains("2 gün")
         assertEquals(0L, model().state.value.snapshot!!.books.single { it.book.id == zero.id }.totalMillis)
         scrollTag("statistics-calendar-toggle").performClick()
         scrollTag("statistics-day-$today").assertExists()
@@ -67,7 +68,7 @@ class ReadingStatisticsActivityTest {
         assertNotSame(before, compose.activity)
         waitForReady()
         waitForState { it.snapshot?.totalMillis == 3_661_623L }
-        scrollTag("statistics-streak-longest").assertTextEquals(compose.activity.getString(R.string.reading_streak_longest, 2))
+        scrollTag("statistics-streak-current").assertTextContains("En uzun: 2 gün")
         scrollTag("statistics-day-$today").assertExists()
         runBlocking { assertTrue(container.library.updateMetadata(book.id, book.sha256, "Güncel İ/ı 😀", "Yeni yazar")) }
         waitForState { it.snapshot?.books?.singleOrNull { entry -> entry.book.id == book.id }?.book?.title == "Güncel İ/ı 😀" }

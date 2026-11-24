@@ -1,5 +1,7 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import android.app.Application
 import android.content.ClipData
 import android.content.Context
@@ -87,8 +89,8 @@ class LibraryScreenTest {
         compose.setContent { YaprakTheme { LibraryScreen(LibraryState.Ready(books), false, SnackbarHostState(), {}, {}, { opened = it }, "", {}) } }
         compose.onNodeWithText("3 KİTAP").assertIsDisplayed()
         capture("library-populated")
-        compose.onNodeWithText("Yazar bilgisi yok").performClick()
-        compose.onNodeWithText("Kitap bilgileri").assertIsDisplayed()
+        compose.openBookDetails("Yol Notları")
+        compose.onNodeWithText("Oku").assertIsDisplayed()
         compose.onNodeWithText("notlar.pdf").assertIsDisplayed()
         compose.onNodeWithText("Oku").performClick()
         assertEquals("2", opened)
@@ -107,7 +109,7 @@ class LibraryScreenTest {
                 { opened = it }, query, { query = it })
         } }
         compose.onNodeWithText("Kaldığın yerden devam et").assertIsDisplayed()
-        compose.onNodeWithText("Okumaya devam et").performClick()
+        compose.onNodeWithContentDescription("Okumaya devam et").performClick()
         assertEquals("read", opened)
         compose.runOnIdle { query = "New" }
         compose.onNodeWithText("Kaldığın yerden devam et").assertDoesNotExist()
@@ -134,20 +136,22 @@ class LibraryScreenTest {
             )
         } }
 
+        if (compose.onAllNodesWithContentDescription("Filtre: Tümü").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Filtre: PDF").performScrollTo().performClick()
         compose.onNodeWithText("1 / 3 KİTAP").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Yazar PDF").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Kaldığın yerden devam et").assertDoesNotExist()
 
-        compose.onNodeWithText("Kitaplıkta ara").performScrollTo().performTextReplacement("Ardıç")
+        compose.librarySearchField().performTextReplacement("Ardıç")
         compose.onNodeWithText("Bu filtrede kitap yok.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("0 / 3 KİTAP").performScrollTo().assertIsDisplayed()
 
-        compose.onNodeWithContentDescription("Filtre: Konum kaydı yok").performScrollTo().performClick()
+        if (compose.onAllNodesWithContentDescription("Filtre: Tümü").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
+        compose.onNodeWithContentDescription("Filtre: Başlanmamış").performScrollTo().performClick()
         compose.onNodeWithText("1 / 3 KİTAP").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Yazar EPUB Yeni").performScrollTo().assertIsDisplayed()
 
-        compose.onNodeWithText("Kitaplıkta ara").performScrollTo().performTextReplacement("Kıyı")
+        compose.librarySearchField().performTextReplacement("Kıyı")
         compose.onNodeWithText("Bu filtrede kitap yok.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Tüm kitapları göster").performScrollTo().performClick()
         compose.onNodeWithText("3 KİTAP").performScrollTo().assertIsDisplayed()
@@ -175,21 +179,27 @@ class LibraryScreenTest {
             )
         } }
 
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Kapaklar").performScrollTo().assertIsSelected()
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Liste").performScrollTo().performClick()
         assertEquals(LibraryLayout.LIST, layout)
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Liste").assertIsSelected()
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, EPUB Yazarı, EPUB, Belirlenmedi").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Kıyı Atlası, PDF Yazarı, PDF, Belirlenmedi").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, EPUB Yazarı, EPUB").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Kıyı Atlası, PDF Yazarı, PDF").assertIsDisplayed()
 
-        compose.onNodeWithText("Kitaplıkta ara").performScrollTo().performTextReplacement("Kıyı")
+        compose.librarySearchField().performTextReplacement("Kıyı")
+        if (compose.onAllNodesWithContentDescription("Filtre: Tümü").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Filtre: PDF").performScrollTo().performClick()
         compose.onNodeWithText("1 / 2 KİTAP").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Kıyı Atlası, PDF Yazarı, PDF, Belirlenmedi").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, EPUB Yazarı, EPUB, Belirlenmedi").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Kıyı Atlası, PDF Yazarı, PDF").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, EPUB Yazarı, EPUB").assertDoesNotExist()
 
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Kapaklar").performScrollTo().performClick()
         assertEquals(LibraryLayout.GRID, layout)
+        if (compose.onAllNodesWithContentDescription("Görünüm: Liste").fetchSemanticsNodes().isEmpty()) compose.onNodeWithContentDescription("Filtreler ve görünüm").performClick()
         compose.onNodeWithContentDescription("Görünüm: Kapaklar").assertIsSelected()
         compose.onNodeWithText("1 / 2 KİTAP").assertIsDisplayed()
         compose.onNodeWithText("PDF Yazarı").assertIsDisplayed()
@@ -331,8 +341,8 @@ class LibraryScreenTest {
             LibraryScreen(LibraryState.Ready(emptyList()), false, SnackbarHostState(), {}, {}, {}, "", {},
                 backupAvailable = true, onBackupRestore = { restored++ })
         } }
-        compose.onNodeWithText("Yedekleme").performScrollTo().performClick()
-        compose.onNodeWithText("Yedeği geri yükle").performScrollTo().performClick()
+        compose.libraryToolNodeWithText("Yedekleme").performScrollTo().performClick()
+        compose.libraryToolNodeWithText("Yedeği geri yükle").performScrollTo().performClick()
         assertEquals(0, restored)
         compose.onNodeWithText("Yedek geri yüklensin mi?").assertIsDisplayed()
         compose.onNodeWithText("Dosya seç").performClick()
@@ -345,8 +355,8 @@ class LibraryScreenTest {
             LibraryScreen(LibraryState.Ready(listOf(book)), false, SnackbarHostState(), {}, {}, {}, "", {},
                 backupAvailable = true, onBackupRestore = { fail("Restore must be disabled") })
         } }
-        compose.onNodeWithText("Yedekleme").performScrollTo().performClick()
-        compose.onNodeWithText("Yedeği geri yükle").performScrollTo().assertIsNotEnabled()
+        compose.libraryToolNodeWithText("Yedekleme").performScrollTo().performClick()
+        compose.libraryToolNodeWithText("Yedeği geri yükle").performScrollTo().assertIsNotEnabled()
     }
 
     @Test fun `suggested export name strips unsafe characters and follows stored format`() {
@@ -365,8 +375,8 @@ class LibraryScreenTest {
             LibraryScreen(LibraryState.Ready(listOf(book)), false, SnackbarHostState(), {}, {}, {}, "", {},
                 onExport = { selected = it })
         } }
-        compose.onNodeWithText("Deniz").performClick()
-        compose.onNodeWithText("Yalnız kitap dosyası dışa aktarılır. Notlar ve okuma konumu bu kopyada yoktur.")
+        compose.openBookDetails()
+        compose.onNodeWithText("Yalnız kitap dosyası; notlar dahil değil.")
             .performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Dosyayı dışa aktar").performScrollTo().performClick()
         assertEquals(book, selected)
@@ -392,7 +402,7 @@ class LibraryScreenTest {
                     }
                 })
         } }
-        compose.onNodeWithText("Deniz").performClick()
+        compose.openBookDetails()
         compose.onNodeWithText("Başlığı ve yazarı düzenle").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Kitap başlığı alanı").performTextReplacement("   ")
         compose.onNodeWithText("Kaydet").assertIsNotEnabled()
@@ -422,7 +432,7 @@ class LibraryScreenTest {
             editState = BookMetadataEditState.Saved(book.id, 1)
         }
         compose.onNodeWithText("Kitap bilgilerini düzenle").assertDoesNotExist()
-        compose.onNodeWithText("Kitap bilgileri").assertIsDisplayed()
+        compose.onNodeWithText("Oku").assertIsDisplayed()
     }
 
     @Test fun `another export cannot start while destination selection is pending`() {
@@ -432,13 +442,13 @@ class LibraryScreenTest {
             LibraryScreen(LibraryState.Ready(listOf(book)), false, SnackbarHostState(), {}, {}, {}, "", {},
                 exporting = exporting, onExport = { fail("Disabled export started") })
         } }
-        compose.onNodeWithText("Deniz").performClick()
+        compose.openBookDetails()
         compose.runOnIdle { exporting = true }
         compose.onNodeWithText("Dosyayı dışa aktar").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("Kapat").performClick()
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Deniz"))
-        compose.onNodeWithText("Deniz").performClick()
-        compose.onNodeWithText("Kitap bilgileri").assertDoesNotExist()
+        compose.openBookDetails()
+        compose.onNodeWithText("Oku").assertDoesNotExist()
     }
 
     @Test fun `book removal needs confirmation and keeps retry visible after a failure`() {
@@ -454,7 +464,7 @@ class LibraryScreenTest {
                 },
                 onClearRemovalError = { removal = BookRemovalState.Idle })
         } }
-        compose.onNodeWithText("Deniz").performClick()
+        compose.openBookDetails()
         compose.onNodeWithText("Kitabı kaldır").performScrollTo().performClick()
         assertEquals(0, removals)
         compose.onNodeWithText("Vazgeç").performClick()
@@ -471,7 +481,7 @@ class LibraryScreenTest {
         val book = Book("saved-id", "Bir Yaz Sabahı", "Deniz", BookFormat.EPUB, "book.epub", "saved-id.epub", 100, "1abc", 1)
         var opened: String? = null
         compose.setContent { YaprakTheme { LibraryScreen(LibraryState.Ready(listOf(book)), false, SnackbarHostState(), {}, {}, { opened = it }, "", {}) } }
-        compose.onNodeWithText("Deniz").performClick()
+        compose.openBookDetails()
         compose.onNodeWithText("Oku").performClick()
         assertEquals(book.id, opened)
     }
@@ -485,17 +495,16 @@ class LibraryScreenTest {
             LibraryScreen(LibraryState.Ready(searchBooks(listOf(book), query), 1, query), false,
                 SnackbarHostState(), { imports++ }, {}, { opened = it }, query, { query = it })
         } }
-        compose.onNodeWithText("Kitaplıkta ara").performTextReplacement("bulunmayan")
-        compose.onNodeWithText("Kitaplıkta ara").performImeAction()
+        compose.librarySearchField().performTextReplacement("bulunmayan")
+        compose.librarySearchField().performImeAction()
         compose.onNodeWithText("Eşleşen kitap yok.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("0 / 1 KİTAP").assertIsDisplayed()
         capture("library-search-empty")
         compose.onNodeWithText("Kitap ekle", useUnmergedTree = true).assertIsDisplayed().performClick()
         assertEquals(1, imports)
-        compose.onNodeWithText("Temizle").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Temizle").performScrollTo().performClick()
         compose.onNodeWithText("1 KİTAP").assertIsDisplayed()
         compose.onNodeWithText("Deniz").performScrollTo().performClick()
-        compose.onNodeWithText("Oku").performClick()
         assertEquals("saved", opened)
     }
 
@@ -509,10 +518,10 @@ class LibraryScreenTest {
                     false, SnackbarHostState(), {}, {}, {}, query, { query = it }) }
             }
         }
-        compose.onNodeWithText("Temizle").performScrollTo().assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("Temizle").performScrollTo().assertIsDisplayed().performClick()
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Deniz"))
-        compose.onNodeWithText("Deniz").performClick()
-        compose.onNodeWithText("Kitap bilgileri").assertIsDisplayed()
+        compose.openBookDetails()
+        compose.onNodeWithText("Oku").assertIsDisplayed()
         compose.onNodeWithText("Kapat").assertIsDisplayed().performClick()
     }
 

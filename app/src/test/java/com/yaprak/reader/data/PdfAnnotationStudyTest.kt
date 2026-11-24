@@ -1,5 +1,6 @@
 package com.yaprak.reader.data
 
+import org.junit.Assert.assertTrue
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -48,7 +49,9 @@ class PdfAnnotationStudyTest {
             assertNull(actual.sourceAnchor); assertNull(actual.highlightColor)
             assertEquals(actual, search.find(book.id, book.sha256, saved.id, LibraryNoteSource.PDF_ANNOTATION))
             assertNull(search.find(book.id, book.sha256, saved.id, LibraryNoteSource.BOOK_NOTE))
-            assertEquals(0, search.observe("plain highlight").first().totalCount)
+            // A note-less highlight is listed as a plain highlight; its quote is its text.
+            val plain = search.observe("plain highlight").first().entries.single()
+            assertTrue(plain.highlightOnly); assertEquals("plain highlight", plain.text)
         }
     }
 

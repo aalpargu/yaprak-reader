@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -75,6 +76,8 @@ class LibraryWordsUiTest {
         .performScrollToNode(hasTestTag(tag)).let { compose.onNodeWithTag(tag) }
     private fun largeFont() { compose.runOnUiThread { RuntimeEnvironment.setFontScale(2f) }; compose.activityRule.scenario.recreate() }
     private fun readable(label: String) {
+        // Back is an icon in the top bar; its label is the content description.
+        if (label == "Kitaplığa dön") { compose.onNodeWithContentDescription(label).assertExists(); return }
         if (label != "Kitaplığa dön") compose.onNodeWithTag("library-words-list").performScrollToNode(hasText(label))
         val layouts = mutableListOf<TextLayoutResult>()
         compose.onNodeWithText(label, useUnmergedTree = true).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }

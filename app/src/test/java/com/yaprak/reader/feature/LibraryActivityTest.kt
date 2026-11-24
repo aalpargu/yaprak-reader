@@ -1,5 +1,8 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.yaprak.reader.MainActivity
@@ -26,11 +29,11 @@ class LibraryActivityTest {
         val repository = (compose.activity.application as YaprakApplication).container.library
         val book = Book("first", "İstanbul", "Deniz", BookFormat.EPUB, "first.epub", "first.epub", 1, "first-hash", 1)
         runBlocking { repository.add(book); repository.add(book.copy(id = "second", title = "Quiet Morning", sha256 = "second-hash")) }
-        compose.waitUntil(15_000) { compose.onAllNodesWithText("Kitaplıkta ara").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("Kitaplıkta ara").fetchSemanticsNodes().isNotEmpty() }
         // Bring the real interactive section above the floating add action before native taps.
         compose.onNode(hasScrollToIndexAction()).performScrollToKey("librarySearchControls")
-        compose.onNodeWithText("Kitaplıkta ara").performTextReplacement("istanbul")
-        compose.onNodeWithText("Kitaplıkta ara").performImeAction()
+        compose.librarySearchField().performTextReplacement("istanbul")
+        compose.librarySearchField().performImeAction()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("1 / 2 KİTAP").fetchSemanticsNodes().isNotEmpty() }
         val before = compose.activity
         compose.activityRule.scenario.recreate()
@@ -40,7 +43,7 @@ class LibraryActivityTest {
         compose.onNode(hasSetTextAction()).assertTextContains("istanbul")
         runBlocking { repository.add(book.copy(id = "third", sha256 = "third-hash")) }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("2 / 3 KİTAP").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Temizle").performClick()
+        compose.onNodeWithContentDescription("Temizle").performClick()
         compose.waitUntil(10_000) { compose.onAllNodesWithText("3 KİTAP").fetchSemanticsNodes().isNotEmpty() }
         compose.onNode(hasSetTextAction()).assertTextContains("")
     }

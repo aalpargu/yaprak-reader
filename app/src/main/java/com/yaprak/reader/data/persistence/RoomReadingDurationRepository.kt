@@ -27,7 +27,7 @@ class RoomReadingDurationRepository(
     private val validateAccess: () -> Unit = {},
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ReadingDurationRepository {
-    override fun observe() = database.invalidationTracker.createFlow("books", "reading_duration_receipts",
+    override fun observe() = database.invalidationTracker.createFlow("books", "reading_duration_receipts", "reading_page_receipts",
         "reading_progress", "book_organizations", "book_covers")
         .catch { failure ->
             currentCoroutineContext().ensureActive()
@@ -57,8 +57,22 @@ class RoomReadingDurationRepository(
                         total += receipt.elapsedMillis
                     }
                 }
-                ReadingDurationSnapshot(perDay.map { ReadingDurationDay(it.key, it.value) },
-                    currentBooks.map { BookReadingDuration(it, perBook[it.id] ?: 0L) }, total)
+                // Pages only come from receipts the reader actually counted; days without them stay null.
+                val pagesPerBook = mutableMapOf<String, Int>()
+                val pagesPerDay = mutableMapOf<String, Int>()
+                sql.query("SELECT bookId, contentSha256, localDate, pages FROM reading_page_receipts ORDER BY id").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        checkActive()
+                        val bookId = cursor.text("bookId"); val day = cursor.text("localDate")
+                        val pages = cursor.number("pages")
+                        if (pages !in 0..MAX_READING_PAGES_PER_RECEIPT) fail(ReadingDurationFailure.SOURCE)
+                        if (hashes[bookId] != cursor.text("contentSha256")) continue
+                        pagesPerBook[bookId] = (pagesPerBook[bookId] ?: 0) + pages.toInt()
+                        pagesPerDay[day] = (pagesPerDay[day] ?: 0) + pages.toInt()
+                    }
+                }
+                ReadingDurationSnapshot(perDay.map { ReadingDurationDay(it.key, it.value, pagesPerDay[it.key]) },
+                    currentBooks.map { BookReadingDuration(it, perBook[it.id] ?: 0L, pagesPerBook[it.id]) }, total)
             }
         }
 
@@ -90,7 +104,7 @@ class RoomReadingDurationRepository(
                     receipt.endedAt, receipt.elapsedMillis))
             }
             val stored = existing() ?: fail(ReadingDurationFailure.SOURCE)
-            if (stored.copy(endedAt = receipt.endedAt, elapsedMillis = receipt.elapsedMillis) != receipt) {
+            if (stored.copy(endedAt = receipt.endedAt, elapsedMillis = receipt.elapsedMillis, pages = receipt.pages) != receipt) {
                 fail(ReadingDurationFailure.INVALID_RECORD)
             }
             if (receipt.elapsedMillis >= stored.elapsedMillis &&
@@ -99,6 +113,15 @@ class RoomReadingDurationRepository(
                 sql.execSQL("""UPDATE reading_duration_receipts SET elapsedMillis = MAX(elapsedMillis, ?),
                     endedAt = MAX(endedAt, ?) WHERE id = ?""".trimIndent(),
                     arrayOf<Any>(receipt.elapsedMillis, receipt.endedAt, receipt.id))
+            }
+            // Same receipt id, same day: the page count is cumulative too and only moves forward.
+            receipt.pages?.let { pages ->
+                checkActive()
+                // Upsert syntax needs SQLite 3.24; API 26 has 3.18, so insert-or-ignore then raise.
+                sql.execSQL("""INSERT OR IGNORE INTO reading_page_receipts (id, bookId, contentSha256, localDate, pages)
+                    VALUES (?, ?, ?, ?, ?)""".trimIndent(),
+                    arrayOf<Any>(receipt.id, receipt.bookId, receipt.contentSha256, receipt.localDate, pages))
+                sql.execSQL("UPDATE reading_page_receipts SET pages = MAX(pages, ?) WHERE id = ?", arrayOf<Any>(pages, receipt.id))
             }
         }
     }

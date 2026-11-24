@@ -1,5 +1,7 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -89,11 +91,11 @@ class LibraryBookCoverTest {
 
         compose.runOnIdle { layout = LibraryLayout.GRID }
         compose.onNodeWithText(requireNotNull(initial.authors)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("${initial.title}, ${initial.authors}, EPUB, Belirlenmedi").assertIsDisplayed()
+        compose.onNodeWithContentDescription("${initial.title}, ${initial.authors}, EPUB").assertIsDisplayed()
         saveScreenshot("library-real-cover-grid")
         compose.runOnIdle { layout = LibraryLayout.LIST }
         compose.onNodeWithText(requireNotNull(initial.authors)).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("${initial.title}, ${initial.authors}, EPUB, Belirlenmedi").assertIsDisplayed()
+        compose.onNodeWithContentDescription("${initial.title}, ${initial.authors}, EPUB").assertIsDisplayed()
         saveScreenshot("library-real-cover-list")
     }
 

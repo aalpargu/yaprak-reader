@@ -39,6 +39,29 @@ class PdfTextSelectionSourceTest {
     }
     private val start = PdfTextPoint(.2, .3)
     private val stop = PdfTextPoint(.7, .5)
+    @Test fun livePreviewStaysOnThePageUntilToolsAreExplicitlyRequested() = runTest {
+        val native = Native(); val document = PdfDocument(native, StandardTestDispatcher(testScheduler))
+        val source = PdfTextSelectionSource(document) { true }; var notices = 0
+        val observer = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { source.requests.collect { notices++ } }
+        try {
+            source.preview(1, start, stop)
+            assertEquals(0, notices)
+            assertEquals("alpha 🌿", source.preview.value?.selection?.text)
+            assertTrue(source.active)
+            source.showTools(); assertEquals(1, notices)
+            source.clear(); assertNull(source.preview.value); assertFalse(source.active)
+            source.showTools(); assertEquals(1, notices)
+        } finally { observer.cancel(); document.close(); advanceUntilIdle() }
+    }
+    @Test fun replacedNativePreviewCannotPaintThePreviousRequest() = runTest {
+        val native = Native(); val document = PdfDocument(native, StandardTestDispatcher(testScheduler))
+        val source = PdfTextSelectionSource(document) { true }
+        try {
+            native.onSelect = { page, _, _ -> source.clear(); PdfSelectedText(page, "obsolete") }
+            source.preview(1, start, stop)
+            assertNull(source.preview.value); assertFalse(source.active)
+        } finally { document.close(); advanceUntilIdle() }
+    }
     @Test fun acceptingGestureOnlyNotifiesAndCaptureRetainsRealRightPageIdentity() = runTest {
         val native = Native(); val document = PdfDocument(native, StandardTestDispatcher(testScheduler))
         val source = PdfTextSelectionSource(document) { it in listOf(1, 2) }; var notices = 0

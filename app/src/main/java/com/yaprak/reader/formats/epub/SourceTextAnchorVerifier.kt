@@ -4,11 +4,8 @@ import com.yaprak.reader.reader.SelectionRangeCandidate
 import com.yaprak.reader.reader.SourceTextAnchor
 import com.yaprak.reader.reader.EpubSourceAnchor
 import com.yaprak.reader.reader.SourceRangeAnchor
-import java.io.ByteArrayInputStream
 import java.security.MessageDigest
 import java.util.ArrayDeque
-import javax.xml.XMLConstants
-import javax.xml.parsers.DocumentBuilderFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -65,8 +62,9 @@ internal object SourceTextAnchorVerifier {
             try {
                 val bytes = resource.read(0L..MAX_RESOURCE_BYTES.toLong()).getOrNull()
                     ?: return@withContext failed(SourceProofFailure.UNAVAILABLE)
-                currentCoroutineContext().ensureActive()
-                verifyXhtmlBatch(bytes, href, requests)
+                val context = currentCoroutineContext()
+                context.ensureActive()
+                verifyXhtmlBatch(bytes, href, requests) { context.ensureActive() }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { failed(SourceProofFailure.UNAVAILABLE) }
             finally { resource.close() }
@@ -78,7 +76,9 @@ internal object SourceTextAnchorVerifier {
             listOf(SourceAnchorRequest("selection", anchor, selectedText))).nodeTexts.containsKey("selection") }
     }
 
-    fun verifyXhtmlBatch(bytes: ByteArray, href: String, requests: List<SourceAnchorRequest>): SourceAnchorBatch {
+    fun verifyXhtmlBatch(bytes: ByteArray, href: String, requests: List<SourceAnchorRequest>,
+        checkActive: () -> Unit = {}): SourceAnchorBatch {
+        checkActive()
         if (bytes.size > MAX_RESOURCE_BYTES || requests.size > MAX_REQUESTS) return failed(SourceProofFailure.LIMIT)
         if (bytes.isEmpty() || requests.map { it.id }.toSet().size != requests.size) return failed(SourceProofFailure.UNAVAILABLE)
         val valid = requests.filter { request ->
@@ -88,27 +88,29 @@ internal object SourceTextAnchorVerifier {
                 anchor.start >= 0 && anchor.end > anchor.start && anchor.end - anchor.start == request.text.length
         }.groupBy { (it.anchor as SourceTextAnchor).nodeTextSha256 }
         return try {
-            val factory = DocumentBuilderFactory.newInstance().apply {
-                isNamespaceAware = true
-                isExpandEntityReferences = false
-                setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
-                setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-                setFeature("http://xml.org/sax/features/external-general-entities", false)
-                setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+            val document = BoundedSourceXhtmlDocument.parse(bytes, checkActive)
+            // Android's getElementsByTagNameNS can recurse. Discovery also scans every original node.
+            var body: Node? = null
+            val discovery = ArrayDeque<Node>().apply { addLast(document) }
+            while (discovery.isNotEmpty()) {
+                checkActive()
+                val node = discovery.removeLast()
+                if (node.nodeType == Node.ELEMENT_NODE && node.namespaceURI == XHTML_NAMESPACE && node.localName == "body") {
+                    if (body != null) return failed(SourceProofFailure.UNAVAILABLE)
+                    body = node
+                }
+                var child = node.lastChild
+                while (child != null) { discovery.addLast(child); child = child.previousSibling }
             }
-            val builder = factory.newDocumentBuilder().apply {
-                setEntityResolver { _, _ -> org.xml.sax.InputSource(java.io.StringReader("")) }
-            }
-            val document = builder.parse(ByteArrayInputStream(bytes))
-            val bodies = document.getElementsByTagNameNS(XHTML_NAMESPACE, "body")
-            if (bodies.length != 1) return failed(SourceProofFailure.UNAVAILABLE)
+            val originalBody = body ?: return failed(SourceProofFailure.UNAVAILABLE)
             val counts = mutableMapOf<String, Int>()
             val texts = mutableMapOf<String, String>()
             var visited = 0
             val pending = ArrayDeque<Node>()
-            pending.addLast(bodies.item(0))
+            pending.addLast(originalBody)
             // Complete traversal is required even after a match: later duplicates and limits matter.
             while (pending.isNotEmpty()) {
+                checkActive()
                 val node = pending.removeLast()
                 if (++visited > MAX_XML_NODES) return failed(SourceProofFailure.LIMIT)
                 if (node.nodeType == Node.TEXT_NODE) {
@@ -137,11 +139,13 @@ internal object SourceTextAnchorVerifier {
             }
             if (requests.none { it.anchor is SourceRangeAnchor }) SourceAnchorBatch(proven)
             else {
-                val rangeProof = SourceRangeAnchorVerifier.verifyBody(bodies.item(0), href, requests)
+                val rangeProof = SourceRangeAnchorVerifier.verifyBody(originalBody, href, requests)
+                checkActive()
                 // A v2 topology limit/mismatch never removes independent, proven legacy records.
                 SourceAnchorBatch(proven, rangeProof.failure.takeIf { proven.isEmpty() }, rangeProof.rangeNodeTexts, rangeProof.bodyTopology)
             }
         } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: SourceBodyLimitException) { failed(SourceProofFailure.LIMIT) }
         catch (_: Exception) { failed(SourceProofFailure.UNAVAILABLE) }
     }
 

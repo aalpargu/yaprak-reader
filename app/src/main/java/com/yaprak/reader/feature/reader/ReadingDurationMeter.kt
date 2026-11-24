@@ -31,6 +31,8 @@ internal class ReadingDurationMeter {
     private var sample: DurationMoment? = null
     private var interval: Interval? = null
     private var lastCheckpoint = 0L
+    /** The open, measured interval (if any); pages shown now belong to this receipt. */
+    val activeIntervalId: String? get() = interval?.id
 
     fun claim(nextOwner: String, nextBook: DurationBook, now: DurationMoment): List<ReadingDurationReceipt> {
         if (owner == nextOwner && book == nextBook) return emptyList()

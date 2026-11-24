@@ -21,6 +21,16 @@ internal class ReaderDurationController(private val repository: ReadingDurationR
     private var owner: String? = null
     private var identity: DurationBook? = null
     private var allowed = false
+    /** Distinct page keys shown during each still-open interval; attached to its checkpoints. */
+    private val pagesByReceipt = HashMap<String, MutableSet<String>>()
+
+    /** A page actually shown while reading time is being measured. Unmeasured time counts no pages. */
+    fun pageShown(key: String) {
+        if (owner == null || !allowed || mutableFailure.value != null) return
+        val id = meter.activeIntervalId ?: return
+        val pages = pagesByReceipt.getOrPut(id) { HashSet() }
+        if (pages.size < MAX_READING_PAGES_PER_RECEIPT) pages += key
+    }
 
     init {
         scope.launch {
@@ -30,6 +40,7 @@ internal class ReaderDurationController(private val repository: ReadingDurationR
                     try {
                         repository.record(receipt)
                         if (pending[receipt.id] == receipt) pending.remove(receipt.id)
+                        if (receipt.id != meter.activeIntervalId && receipt.id !in pending) pagesByReceipt.remove(receipt.id)
                     } catch (cancelled: CancellationException) { throw cancelled }
                     catch (failure: ReadingDurationException) { fail(failure.reason) }
                     catch (_: Exception) { fail(ReadingDurationFailure.SOURCE) }
@@ -108,7 +119,8 @@ internal class ReaderDurationController(private val repository: ReadingDurationR
         if (receipts.isNotEmpty()) { changed.value++; wake.trySend(Unit) }
     }
     private fun retain(receipts: List<ReadingDurationReceipt>) {
-        for (receipt in receipts) {
+        for (measured in receipts) {
+            val receipt = pagesByReceipt[measured.id]?.let { measured.copy(pages = it.size) } ?: measured
             if (receipt.id !in pending && pending.size >= MAX_PENDING_RECEIPTS) {
                 // A tick can cross midnight and close its second interval. Keep both final
                 // receipts in the bounded reserve, then synchronously stop the meter.

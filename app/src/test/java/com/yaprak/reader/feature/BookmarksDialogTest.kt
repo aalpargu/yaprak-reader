@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -8,12 +9,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.AnnotatedString
 import com.yaprak.reader.domain.bookmarks.*
 import com.yaprak.reader.domain.reader.ReadingLocation
+import com.yaprak.reader.domain.library.Book
+import com.yaprak.reader.domain.library.BookFormat
 import com.yaprak.reader.feature.bookmarks.*
+import com.yaprak.reader.feature.reader.ReaderPanelHost
+import com.yaprak.reader.feature.reader.ReaderPanelKind
+import com.yaprak.reader.feature.reader.ReaderPresentationController
+import com.yaprak.reader.reader.BookmarkNavigator
 import com.yaprak.reader.ui.theme.YaprakTheme
 import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -31,6 +41,139 @@ class BookmarksDialogTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val target = BookmarkTarget("Bahçede bir sabah", ReadingLocation("locator", "one.xhtml"))
     private val entry = Bookmark("id", target, 1_700_000_000_000)
+
+    @Test fun bothProtectedBookmarkLabelsHaveIndependentCurrentDiscardActionsAndTheSecondRemainsVisibleAlone() {
+        val first = RecoveredBookmarkRename("Exact label A")
+        val second = RecoveredBookmarkRename("Exact label B")
+        var state by mutableStateOf(BookmarksState(entries = listOf(entry), loading = false, recoveredRename = first, additionalRecoveredRename = second))
+        var discarded = 0
+        compose.setContent { YaprakTheme { BookmarksDialog(state, {}, {}, {}, {}, {}, { false }, {}, {}, {}, {}, {},
+            onDiscardRecoveredRename = { expected -> when {
+                state.recoveredRename === expected -> { discarded++; state = state.copy(recoveredRename = null) }
+                state.additionalRecoveredRename === expected -> { discarded++; state = state.copy(additionalRecoveredRename = null) }
+                else -> Unit
+            } }) } }
+        compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasTestTag("bookmark-additional-recovered-discard"))
+        val retired = compose.onNodeWithTag("bookmark-additional-recovered-discard").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        compose.runOnIdle { state = state.copy(additionalRecoveredRename = RecoveredBookmarkRename(second.label)) }
+        compose.waitForIdle(); compose.runOnIdle { retired() }; assertEquals(0, discarded)
+        compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasTestTag("bookmark-recovered-discard"))
+        compose.onNodeWithTag("bookmark-recovered-discard").performClick(); assertEquals(1, discarded)
+        compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasTestTag("bookmark-additional-recovered-label"))
+        compose.onNodeWithTag("bookmark-additional-recovered-label").assertIsDisplayed().assertTextEquals("Exact label B")
+        compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasTestTag("bookmark-rename-${entry.id}"))
+        compose.onNodeWithTag("bookmark-rename-${entry.id}").assertIsNotEnabled()
+        compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasTestTag("bookmark-additional-recovered-discard"))
+        compose.onNodeWithTag("bookmark-additional-recovered-discard").performClick(); assertEquals(2, discarded)
+        assertNull(state.recoveredRename); assertNull(state.additionalRecoveredRename); assertEquals(listOf(entry), state.entries)
+    }
+
+    @Test fun recoveredLabelRemainsVisibleDuringAnotherRenameAndOldDiscardCannotConsumeANewerRecovery() {
+        val firstRecovery = RecoveredBookmarkRename("  Exact recovered label  ")
+        var state by mutableStateOf(BookmarksState(entries = listOf(entry), loading = false,
+            recoveredRename = firstRecovery, message = "Transient status"))
+        var discarded = 0
+        compose.setContent { YaprakTheme { BookmarksDialog(state, {}, {}, {}, {}, {}, { false }, {},
+            { state = state.copy(pendingRename = entry, renameDraft = entry.target.label, message = null) },
+            { state = state.copy(renameDraft = it, message = null) }, {}, {},
+            onDiscardRecoveredRename = { expected ->
+                if (state.recoveredRename === expected) { discarded++; state = state.copy(recoveredRename = null) }
+            }) } }
+        compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasTestTag("bookmark-recovered-discard"))
+        val retiredDiscard = compose.onNodeWithTag("bookmark-recovered-discard").fetchSemanticsNode()
+            .config[SemanticsActions.OnClick].action!!
+        val replacement = RecoveredBookmarkRename(firstRecovery.label)
+        compose.runOnIdle { state = state.copy(recoveredRename = replacement) }
+        compose.waitForIdle(); compose.runOnIdle { retiredDiscard() }
+        assertEquals(0, discarded); assertEquals(replacement, state.recoveredRename)
+        compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasTestTag("bookmark-rename-${entry.id}"))
+        compose.onNodeWithTag("bookmark-rename-${entry.id}").assertIsNotEnabled()
+        // Recovery is also visible if the caller already owns a separate admitted editor.
+        compose.runOnIdle { state = state.copy(pendingRename = entry, renameDraft = entry.target.label, message = null) }
+        compose.onNodeWithTag("bookmarks-list").assertDoesNotExist()
+        compose.onNodeWithTag("bookmark-rename-field").performTextReplacement("Current rename input")
+        assertNull(state.message)
+        compose.onNodeWithTag("bookmark-recovered-label").performScrollTo().assertIsDisplayed().assertTextEquals(firstRecovery.label)
+        compose.onNodeWithTag("bookmark-recovered-discard").performScrollTo().performClick()
+        assertEquals(1, discarded); assertNull(state.recoveredRename)
+        assertEquals(entry, state.pendingRename); assertEquals("Current rename input", state.renameDraft)
+        assertEquals(listOf(entry), state.entries)
+    }
+
+    @Test fun acceptedNavigationClosesOnceBeforeItsOwnEpochChangeWhileFailedAndRevokedActionsKeepTheirCaller() {
+        val book=Book("atomic", "Atomic route", null, BookFormat.EPUB, "atomic.epub", "atomic.epub", 1, "a".repeat(64), 1)
+        val records=MutableStateFlow(listOf(entry))
+        val repository=object : BookmarkRepository {
+            override fun observe(bookId: String, contentSha256: String)=records
+            override suspend fun add(bookId: String, contentSha256: String, target: BookmarkTarget)=error("Navigation cannot add")
+            override suspend fun rename(bookId: String, contentSha256: String, bookmarkId: String, label: String)=error("Navigation cannot rename")
+            override suspend fun remove(bookId: String, contentSha256: String, bookmarkId: String)=error("Navigation cannot delete")
+        }
+        val navigator=object : BookmarkNavigator {
+            override fun capture(): BookmarkTarget?=null
+            override fun goTo(location: ReadingLocation)=error("The controlled route boundary owns navigation")
+        }
+        val controller=ReaderPresentationController()
+        val sourceReady=AtomicBoolean(true)
+        var mode="reject"; var navigations=0; var closes=0
+        compose.setContent { YaprakTheme {
+            val shown=controller.state.collectAsState().value
+            ReaderPanelHost(shown,ReaderPanelKind.BOOKMARKS) {
+                BookmarksRoute(book,repository,navigator,{ _, complete ->
+                    navigations++
+                    when(mode) {
+                        "reject" -> false
+                        "throw" -> throw IllegalStateException("Rejected native target")
+                        else -> {
+                            when(mode) {
+                                "source" -> sourceReady.set(false)
+                                "pause" -> controller.pause()
+                                "entry" -> { controller.request(ReaderPanelKind.BOOKMARKS,false); controller.request(ReaderPanelKind.BOOKMARKS,true) }
+                            }
+                            val accepted=complete()
+                            if(accepted) controller.setControls(false)
+                            accepted
+                        }
+                    }
+                },{ closes++; controller.request(ReaderPanelKind.BOOKMARKS,false) },
+                    canMutate={ sourceReady.get() }, canInteract={
+                        controller.state.value.activePanel==shown.activePanel && controller.state.value.epoch==shown.epoch &&
+                            controller.state.value.owner==shown.owner
+                    },presentationEpoch=shown.epoch)
+            }
+        } }
+        val description="1. yer imi: ${target.label}, konuma git"
+        for(next in listOf("reject","throw","source","pause","entry","accept")) {
+            compose.runOnIdle {
+                mode=next; navigations=0; closes=0; sourceReady.set(true)
+                controller.attach("owner-$next"); controller.setControls(true); controller.request(ReaderPanelKind.BOOKMARKS,true)
+            }
+            compose.onNodeWithTag("bookmarks-list").performScrollToNode(hasContentDescription(description))
+            val old=bookmarkApplicationClick(description)
+            compose.runOnIdle { old() }
+            compose.waitForIdle()
+            assertEquals(1,navigations)
+            if(next=="accept") {
+                compose.onNodeWithText("Yer imleri").assertDoesNotExist()
+                assertEquals(1,closes)
+                compose.runOnIdle { old() }
+                assertEquals(1,navigations); assertEquals(1,closes)
+            } else {
+                compose.onNodeWithText("Yer imleri").assertIsDisplayed()
+                assertEquals(0,closes)
+            }
+            assertEquals(listOf(entry),records.value)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun bookmarkApplicationClick(description: String): () -> Unit {
+        val semantics=compose.onNodeWithContentDescription(description).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        val node=semantics.javaClass.getDeclaredField("this\$0").apply { isAccessible=true }.get(semantics)
+        val base=generateSequence<Class<*>>(node.javaClass) { it.superclass }
+            .first { it.name=="androidx.compose.foundation.AbstractClickableNode" }
+        return base.readerMethod("getOnClick").apply { isAccessible=true }.invoke(node) as () -> Unit
+    }
 
     @Test fun `same-title bookmarks expose distinct navigation and delete actions`() {
         val second = entry.copy(id = "id-2", target = target.copy(location = ReadingLocation("locator-2", "two.xhtml")))

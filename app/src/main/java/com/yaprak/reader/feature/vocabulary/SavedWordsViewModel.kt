@@ -1,5 +1,7 @@
 package com.yaprak.reader.feature.vocabulary
 
+import com.yaprak.reader.feature.reader.ReaderDraftSnapshot
+import com.yaprak.reader.feature.reader.readerDraftFingerprint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yaprak.reader.domain.vocabulary.SavedWord
@@ -12,6 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
+
+internal data class RecoveredWordEdit(val english: String, val turkish: String, val id: String = UUID.randomUUID().toString())
 
 internal data class SavedWordsState(
     val entries: List<SavedWord> = emptyList(),
@@ -29,6 +34,8 @@ internal data class SavedWordsState(
     val editTurkishDraft: String = "",
     val translationDraft: Boolean = false,
     val pendingTranslationDraft: TranslatedWordDraft? = null,
+    val recoveredEdit: RecoveredWordEdit? = null,
+    val additionalRecoveredEdit: RecoveredWordEdit? = null,
 ) {
     val visibleEntries: List<SavedWord> get() = sortSavedWords(searchSavedWords(entries, query), sort)
     val englishValid: Boolean get() = validLine(englishDraft, MAX_ENGLISH_WORD_LENGTH)
@@ -38,7 +45,7 @@ internal data class SavedWordsState(
     val canSave: Boolean get() = !loading && !loadFailed && !busy && pendingDelete == null && pendingEdit == null &&
         pendingTranslationDraft == null && englishValid && turkishValid
     val canUpdate: Boolean get() = !loading && !loadFailed && !busy && pendingDelete == null &&
-        pendingTranslationDraft == null && pendingEdit != null && editEnglishValid && editTurkishValid &&
+        pendingTranslationDraft == null && pendingEdit != null && entries.singleOrNull { it.id == pendingEdit.id } == pendingEdit && editEnglishValid && editTurkishValid &&
         (editEnglishDraft.trim() != pendingEdit.english || editTurkishDraft.trim() != pendingEdit.turkish)
 }
 
@@ -53,6 +60,58 @@ internal class SavedWordsViewModel(
     private val mutable = MutableStateFlow(SavedWordsState())
     val state = mutable.asStateFlow()
     private var observation: Job? = null
+    private var presentationInitialized = false
+
+    internal fun snapshot(listIndex: Int, listOffset: Int): ReaderDraftSnapshot = state.value.let { current ->
+        ReaderDraftSnapshot(current.query, current.sort.name, draft = current.englishDraft,
+            secondaryDraft = current.turkishDraft, editId = current.pendingEdit?.id,
+            expectedFingerprint = current.pendingEdit?.let(::readerDraftFingerprint),
+            editDraft = if (current.pendingEdit != null) current.editEnglishDraft else current.additionalRecoveredEdit?.english.orEmpty(),
+            secondaryEditDraft = if (current.pendingEdit != null) current.editTurkishDraft else current.additionalRecoveredEdit?.turkish.orEmpty(),
+            listIndex = listIndex, listOffset = listOffset,
+            recoveredDraft = current.recoveredEdit?.english.orEmpty(), secondaryRecoveredDraft = current.recoveredEdit?.turkish.orEmpty())
+    }
+
+    internal fun restorePresentation(snapshot: ReaderDraftSnapshot?) {
+        val current = state.value
+        if (presentationInitialized || current.loading || current.loadFailed || current.busy) return
+        presentationInitialized = true
+        snapshot ?: return
+        val edited = current.entries.singleOrNull { it.id == snapshot.editId && readerDraftFingerprint(it) == snapshot.expectedFingerprint }
+        val stale = snapshot.editId != null && edited == null
+        val recovered = if (snapshot.recoveredDraft.isNotEmpty() || snapshot.secondaryRecoveredDraft.isNotEmpty())
+            RecoveredWordEdit(snapshot.recoveredDraft, snapshot.secondaryRecoveredDraft) else null
+        val hasEditText = snapshot.editDraft.isNotEmpty() || snapshot.secondaryEditDraft.isNotEmpty()
+        val orphan = snapshot.editId == null && hasEditText
+        // A changed row never receives old edits. Keep both drafts visible instead of issuing a mutation.
+        val occupied = snapshot.draft.isNotEmpty() || snapshot.secondaryDraft.isNotEmpty()
+        mutable.value = current.copy(query = snapshot.query.take(200),
+            sort = SavedWordSort.entries.firstOrNull { it.name == snapshot.sort } ?: SavedWordSort.RECENT,
+            englishDraft = if (stale && !occupied && recovered == null) snapshot.editDraft else snapshot.draft,
+            turkishDraft = if (stale && !occupied && recovered == null) snapshot.secondaryEditDraft else snapshot.secondaryDraft,
+            pendingDelete = null, pendingEdit = edited,
+            editEnglishDraft = if (edited != null) snapshot.editDraft else "",
+            editTurkishDraft = if (edited != null) snapshot.secondaryEditDraft else "",
+            translationDraft = false, pendingTranslationDraft = null,
+            recoveredEdit = recovered ?: if (stale && occupied && hasEditText)
+                RecoveredWordEdit(snapshot.editDraft, snapshot.secondaryEditDraft) else null,
+            additionalRecoveredEdit = if ((orphan || (stale && recovered != null)) && hasEditText)
+                RecoveredWordEdit(snapshot.editDraft, snapshot.secondaryEditDraft) else null,
+            message = if (!stale) null else if (!occupied && recovered == null)
+                "Kelime değişti veya silindi. Kaydedilmemiş taslağın yeni kelime alanlarında korunuyor."
+                else "Kelime değişti veya silindi. Kaydedilmemiş düzenleme taslağın ayrıca korunuyor.")
+    }
+
+    fun discardRecoveredEdit(expected: RecoveredWordEdit) {
+        mutable.update { current -> when {
+            current.busy -> current
+            current.recoveredEdit === expected -> current.copy(recoveredEdit = null)
+            current.additionalRecoveredEdit === expected -> current.copy(additionalRecoveredEdit = null)
+            else -> current
+        } }
+    }
+
+
 
     init { reload() }
 
@@ -166,7 +225,8 @@ internal class SavedWordsViewModel(
     fun delete() {
         val current = state.value
         val entry = current.pendingDelete ?: return
-        if (current.busy || current.loading || current.loadFailed || current.pendingEdit != null) return
+        if (current.busy || current.loading || current.loadFailed || current.pendingEdit != null ||
+            current.entries.singleOrNull { it.id == entry.id } != entry) return
         mutable.update { it.copy(busy = true, message = null) }
         viewModelScope.launch {
             try {
@@ -181,8 +241,10 @@ internal class SavedWordsViewModel(
     }
 
     fun requestEdit(id: String) {
+        // The second fixed recovery occupies the former editor fields. No third editor is admitted.
         if (state.value.busy || state.value.loading || state.value.loadFailed ||
-            state.value.pendingDelete != null || state.value.pendingEdit != null || state.value.pendingTranslationDraft != null) return
+            state.value.pendingDelete != null || state.value.pendingEdit != null || state.value.pendingTranslationDraft != null ||
+            state.value.recoveredEdit != null || state.value.additionalRecoveredEdit != null) return
         mutable.update { current ->
             val entry = current.entries.firstOrNull { it.id == id } ?: return@update current
             current.copy(pendingEdit = entry, editEnglishDraft = entry.english,

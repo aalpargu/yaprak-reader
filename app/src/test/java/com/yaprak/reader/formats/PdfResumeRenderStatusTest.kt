@@ -1,6 +1,7 @@
 package com.yaprak.reader.formats
 
 import com.yaprak.reader.formats.pdf.*
+import com.yaprak.reader.reader.PdfPageCrop
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -38,6 +39,43 @@ class PdfResumeRenderStatusTest {
         status.finishDraw(1, ticket, 650_000)
         assertEquals(PdfResumePosition(1, 650_000), status.drawnPosition.value)
         status.initialPreferencesApplied(); assertEquals(restore, status.scrollNavigation.value)
+    }
+    @Test fun settledResumeRetainsItsUndrawnTargetAcrossChromeResizeUntilAnActualNativePointTakesOver() {
+        val viewport = PdfScrollViewport(400, 800, 96, 48, PdfPageCrop(), PdfFitMode.WIDTH)
+        val status = PdfRenderStatus(3, 1, 650_000)
+        status.setScrolling(true); status.updateScrollGeometry(viewport); status.registerScrollItem(1)
+        val ticket = prepare(status, 1)
+        status.initialPreferencesApplied()
+        val original = status.scrollNavigation.value
+        status.updateScrollViewport(listOf(1), 1, original.revision)
+        assertTrue(status.scrollNavigationSettled)
+        assertNull(status.drawnPosition.value)
+
+        // T1 can restore visible controls after placement but before PdfDrawProofView paints.
+        status.updateScrollGeometry(viewport.copy(height = 740))
+        val resized = status.scrollNavigation.value
+        assertTrue(resized.revision > original.revision)
+        assertEquals(650_000, resized.anchorY)
+        assertEquals(original.pointNavigationRevisions, resized.pointNavigationRevisions)
+        assertFalse(status.scrollNavigationSettled)
+        status.updateScrollViewport(listOf(1), 1, original.revision)
+        status.finishDraw(1, ticket, 20_000)
+        assertNull(status.drawnPosition.value)
+
+        status.updateScrollViewport(listOf(1), 1, resized.revision)
+        status.finishDraw(1, ticket, 645_000)
+        assertEquals(PdfResumePosition(1, 645_000), status.drawnPosition.value)
+        status.clearDraw()
+        status.updateScrollGeometry(viewport.copy(height = 700))
+        val painted = status.scrollNavigation.value
+        assertEquals(645_000, painted.anchorY)
+
+        // An admitted page-only paint retires the command; an old original point cannot return.
+        status.updateScrollViewport(listOf(1), 1, painted.revision)
+        status.finishDraw(1, ticket, null)
+        assertEquals(PdfResumePosition(1), status.drawnPosition.value)
+        status.updateScrollGeometry(viewport.copy(height = 660))
+        assertNull(status.scrollNavigation.value.anchorY)
     }
     @Test fun pagedPreferenceConsumesThePendingAnchorOnlyAfterItsActualPagedDraw() {
         val status = PdfRenderStatus(3, 1, 650_000)

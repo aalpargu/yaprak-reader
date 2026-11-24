@@ -35,7 +35,7 @@ class CbzPagePositionChromeTest {
         override fun close() = Unit
         override fun createSurface(initial: ReadingLocation?, dark: Boolean, onTap: () -> Unit, onError: () -> Unit): ReaderSurface = error("UI only")
     })
-    private fun label(percent: Int) = RuntimeEnvironment.getApplication().getString(R.string.fixed_page_position_percent, percent)
+    private fun label(percent: Int) = "%$percent"
     private fun description(percent: Int) = RuntimeEnvironment.getApplication().getString(R.string.cbz_page_position_description, percent)
     @Composable private fun Chrome(reader: ReaderState, percent: Int?, visible: Boolean = true) {
         ReaderChrome(reader, visible, false, false, {}, {}, {}, {}, {}, {}, {}, bookPositionPercent = percent)
@@ -45,7 +45,7 @@ class CbzPagePositionChromeTest {
         var percent by mutableStateOf<Int?>(null); val reader = ready()
         compose.setContent { YaprakTheme { Chrome(reader, percent) } }
         compose.onNodeWithText(label(40)).assertDoesNotExist(); compose.runOnIdle { percent = 40 }
-        val node = compose.onNodeWithText(label(40), useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        val node = compose.onNodeWithText(label(40), useUnmergedTree = true).assertIsDisplayed()
         val layouts = mutableListOf<TextLayoutResult>()
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single(); assertEquals(2f, layout.layoutInput.density.fontScale)
@@ -74,14 +74,14 @@ class CbzPagePositionChromeTest {
             compose.runOnIdle { percent = invalid }; compose.onNodeWithText(label(40)).assertDoesNotExist()
         }
         compose.runOnIdle { percent = 100 }; compose.onNodeWithText(label(100)).assertExists()
-        compose.runOnIdle { visible = false }; compose.onNodeWithText(label(100)).assertDoesNotExist()
+        compose.runOnIdle { visible = false }; compose.onNodeWithContentDescription(description(100)).assertDoesNotExist()
         compose.runOnIdle { visible = true; reader = ready(BookFormat.PDF) }
         compose.onNodeWithText(label(100)).assertExists()
         compose.onNodeWithContentDescription(description(100)).assertDoesNotExist()
         compose.onNodeWithContentDescription(RuntimeEnvironment.getApplication().getString(R.string.pdf_page_position_description, 100)).assertExists()
         compose.runOnIdle { reader = ready(BookFormat.TXT) }
-        compose.onNodeWithText(label(100)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(description(100)).assertDoesNotExist()
         compose.runOnIdle { reader = ready(BookFormat.EPUB); percent = 40 }
-        compose.onNodeWithText("Yaklaşık kitap konumu: %40").assertExists(); compose.onNodeWithText(label(40)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(RuntimeEnvironment.getApplication().getString(R.string.epub_book_position_description, 40)).assertExists(); compose.onNodeWithContentDescription(description(40)).assertDoesNotExist()
     }
 }

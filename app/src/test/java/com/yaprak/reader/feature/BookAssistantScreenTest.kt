@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -80,6 +81,8 @@ class BookAssistantScreenTest {
         compose.runOnUiThread { RuntimeEnvironment.setFontScale(2f) }; compose.activityRule.scenario.recreate()
     }
     private fun readable(text: String) {
+        // Back is an icon in the top bar; its label is the content description.
+        if (text == "Aramaya dön") { compose.onNodeWithContentDescription(text).assertExists(); return }
         val layouts = mutableListOf<TextLayoutResult>()
         compose.onNodeWithText(text, useUnmergedTree = true).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single(); assertEquals(2f, layout.layoutInput.density.fontScale)

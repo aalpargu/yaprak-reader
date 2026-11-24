@@ -2,6 +2,7 @@
 
 package com.yaprak.reader.reader
 
+import com.yaprak.reader.readerMethod
 import android.content.Context
 import androidx.room.Room
 import androidx.lifecycle.lifecycleScope
@@ -334,7 +335,7 @@ class EpubReaderDeviceTest {
     private fun paceEstimate(scenario: ActivityScenario<ReaderActivity>): com.yaprak.reader.feature.reader.ReadingTimeEstimate? {
         var result: com.yaprak.reader.feature.reader.ReadingTimeEstimate? = null
         scenario.onActivity { activity ->
-            val controller = ReaderActivity::class.java.getDeclaredMethod("getPace").apply { isAccessible = true }
+            val controller = ReaderActivity::class.java.readerMethod("getPace").apply { isAccessible = true }
                 .invoke(activity) as com.yaprak.reader.feature.reader.ReaderPaceController
             result = controller.state.value
         }
@@ -365,7 +366,7 @@ class EpubReaderDeviceTest {
         scenario.onActivity { activity ->
             val navigator = activity.supportFragmentManager.fragments.filterIsInstance<EpubNavigatorFragment>().single()
             // Kotlin protects this SDK property. Read the actual instance without changing it.
-            publication = org.readium.r2.navigator.NavigatorFragment::class.java.getDeclaredMethod("getPublication")
+            publication = org.readium.r2.navigator.NavigatorFragment::class.java.readerMethod("getPublication")
                 .apply { isAccessible = true }.invoke(navigator) as org.readium.r2.shared.publication.Publication
         }
         val actual = checkNotNull(publication)
@@ -520,7 +521,7 @@ class EpubReaderDeviceTest {
                 scenario.onActivity { activity ->
                     val navigator = activity.supportFragmentManager.fragments.filterIsInstance<EpubNavigatorFragment>()
                         .singleOrNull()
-                    val model = ReaderActivity::class.java.getDeclaredMethod("getModel").apply { isAccessible = true }
+                    val model = ReaderActivity::class.java.readerMethod("getModel").apply { isAccessible = true }
                         .invoke(activity) as com.yaprak.reader.feature.reader.ReaderViewModel
                     last = navigator?.currentLocator?.value?.href?.removeFragment()?.toString() to
                         model.latestLocation?.resourceHref

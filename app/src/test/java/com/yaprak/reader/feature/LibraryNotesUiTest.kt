@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -136,7 +137,7 @@ class LibraryNotesUiTest {
                 {}, {}, { copied = it }, { opened = it }, { backs++ }) }
         } }
         compose.onNodeWithTag("library-notes-back").assertIsDisplayed()
-        compose.onNodeWithTag("library-notes-list").performScrollToIndex(203)
+        compose.onNodeWithTag("library-notes-list").performScrollToIndex(201)
         scrollToTag("library-note-copy-note-199").assertIsDisplayed().performClick()
         scrollToTag("library-note-open-note-199").assertIsDisplayed().performClick()
         val copyLabel = compose.onNode(hasText(text(R.string.library_notes_copy)) and
@@ -145,7 +146,8 @@ class LibraryNotesUiTest {
         val openLabel = compose.onNode(hasText(text(R.string.library_notes_open)) and
             hasAnyAncestor(hasTestTag("library-note-open-note-199")), useUnmergedTree = true)
         assertReadable(openLabel)
-        assertReadable(compose.onNode(hasText(text(R.string.library_notes_back)), useUnmergedTree = true))
+        // Back is an icon in the top bar now; its label is the content description.
+        compose.onNodeWithContentDescription(text(R.string.library_notes_back)).assertIsDisplayed()
         scrollToText(text(R.string.library_notes_reload)).assertIsDisplayed()
         assertReadable(compose.onNode(hasText(text(R.string.library_notes_reload)), useUnmergedTree = true))
         scrollToText(text(R.string.clear_search)).assertIsDisplayed()
@@ -177,6 +179,7 @@ class LibraryNotesUiTest {
         compose.setContent { YaprakTheme { LibraryScreen(LibraryState.Ready(emptyList()), false,
             SnackbarHostState(), {}, {}, {}, "", {}, discoveryState = discovery,
             onAllNotes = if (available) ({ effects++ }) else null) } }
+        compose.onNodeWithContentDescription("Kitaplık araçları").performClick()
         val old = compose.onNodeWithText(text(R.string.library_notes_title)).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { discovery = DiscoveryState.Choosing("picker") }
         compose.onNodeWithText(text(R.string.library_notes_title)).assertIsNotEnabled()

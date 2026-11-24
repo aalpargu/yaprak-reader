@@ -4,7 +4,7 @@ import com.tom_roush.pdfbox.cos.*
 import java.util.Collections
 import java.util.IdentityHashMap
 
-internal data class PdfOutlineRow(val id: String, val title: String, val depth: Int, val pageIndex: Int?)
+internal data class PdfOutlineRow(val id: String, val title: String, val depth: Int, val pageIndex: Int?, val anchorY: Int? = null)
 internal data class ParsedPdfOutline(val rows: List<PdfOutlineRow>, val truncated: Boolean)
 internal enum class PdfOutlineProblem { LIMIT, MALFORMED }
 internal class PdfOutlineParseException(val problem: PdfOutlineProblem) : Exception(problem.name)
@@ -49,16 +49,23 @@ internal class BoundedPdfOutline(private val checkActive: () -> Unit = {}) {
                 .take(500).dropLastWhile { it.isHighSurrogate() }
                 .map { if (it.isISOControl()) ' ' else it }.joinToString("").trim().ifBlank { "Adsız başlık" }
             val target = target(node, catalog, pages)
-            result += PdfOutlineRow(result.size.toString(), title, depth, target)
+            result += PdfOutlineRow(result.size.toString(), title, depth, target?.pageIndex, target?.anchorY)
             field(node, COSName.NEXT)?.let { pending.addLast(it to depth) }
             field(node, COSName.FIRST)?.let { pending.addLast(it to depth + 1) }
         }
         return ParsedPdfOutline(Collections.unmodifiableList(result), pending.isNotEmpty())
     }
 
-    private fun pageOrdinals(catalog: COSDictionary, expected: Int): IdentityHashMap<COSDictionary, Int> {
+    private class PageCatalog {
+        val ordinals = IdentityHashMap<COSDictionary, Int>()
+        val parents = IdentityHashMap<COSDictionary, COSDictionary>()
+        val spaces = IdentityHashMap<COSDictionary, PdfOutlinePageSpace?>()
+    }
+
+    private fun pageOrdinals(catalog: COSDictionary, expected: Int): PageCatalog {
         val root = field(catalog, COSName.PAGES) ?: fail(PdfOutlineProblem.MALFORMED)
-        val result = IdentityHashMap<COSDictionary, Int>()
+        val catalogPages = PageCatalog()
+        val result = catalogPages.ordinals
         val seen = IdentityHashMap<COSDictionary, Boolean>()
         val pending = ArrayDeque<Pair<COSBase, Int>>()
         pending.addLast(root to 0)
@@ -76,16 +83,20 @@ internal class BoundedPdfOutline(private val checkActive: () -> Unit = {}) {
                 COSName.PAGES -> {
                     val children = field(node, COSName.KIDS) as? COSArray ?: fail(PdfOutlineProblem.MALFORMED)
                     if (children.size() + pending.size + seen.size > MAX_PAGE_NODES) fail(PdfOutlineProblem.LIMIT)
-                    for (index in children.size() - 1 downTo 0) pending.addLast(children.get(index) to depth + 1)
+                    for (index in children.size() - 1 downTo 0) {
+                        val child = direct(children.get(index)) as? COSDictionary ?: fail(PdfOutlineProblem.MALFORMED)
+                        if (catalogPages.parents.put(child, node) != null) fail(PdfOutlineProblem.MALFORMED)
+                        pending.addLast(child to depth + 1)
+                    }
                 }
                 else -> fail(PdfOutlineProblem.MALFORMED)
             }
         }
         if (result.size != expected) fail(PdfOutlineProblem.MALFORMED)
-        return result
+        return catalogPages
     }
 
-    private fun target(node: COSDictionary, catalog: COSDictionary, pages: IdentityHashMap<COSDictionary, Int>): Int? {
+    private fun target(node: COSDictionary, catalog: COSDictionary, pages: PageCatalog): PdfResumePosition? {
         var destination = field(node, COSName.DEST)
         val action = field(node, COSName.A)
         if (destination != null && action != null) return null
@@ -105,7 +116,8 @@ internal class BoundedPdfOutline(private val checkActive: () -> Unit = {}) {
                     if (mode.name !in LOCAL_MODES) return null
                     // Local destinations refer to actual Page objects. Numeric remote-page guesses are unavailable.
                     val page = direct(value.get(0)) as? COSDictionary ?: return null
-                    return pages[page]
+                    val index = pages.ordinals[page] ?: return null
+                    return PdfResumePosition(index, destinationAnchor(value, mode.name, page, pages))
                 }
                 is COSDictionary -> {
                     if (dictionaries.put(value, true) != null) return null
@@ -120,6 +132,61 @@ internal class BoundedPdfOutline(private val checkActive: () -> Unit = {}) {
             }
         }
         return null
+    }
+
+    /** Resolve only a vertical paper point. Requested PDF zoom and horizontal pan are not applied. */
+    private fun destinationAnchor(value: COSArray, mode: String, page: COSDictionary, pages: PageCatalog): Int? {
+        val expected = when (mode) { "XYZ" -> 5; "FitH", "FitBH" -> 3; else -> return null }
+        if (value.size() != expected) return null
+        fun coordinate(index: Int): Double? = (direct(value.get(index)) as? COSNumber)?.floatValue()?.toDouble()?.takeIf { it.isFinite() }
+        fun nullableNumber(index: Int): Boolean {
+            val item = direct(value.get(index))
+            return item is COSNull || item is COSNumber && item.floatValue().isFinite()
+        }
+        if ((2 until expected).any { !nullableNumber(it) }) return null
+        if (mode == "XYZ" && coordinate(4)?.let { it < 0 } == true) return null
+        val space = if (pages.spaces.containsKey(page)) pages.spaces[page] else {
+            pageSpace(page, pages).also { pages.spaces[page] = it }
+        } ?: return null
+        return space.anchorY(if (mode == "XYZ") coordinate(2) else null,
+            coordinate(if (mode == "XYZ") 3 else 2))
+    }
+
+    private fun pageSpace(page: COSDictionary, pages: PageCatalog): PdfOutlinePageSpace? {
+        // Match only inheritance on the actual traversed page tree; an unrelated /Parent cannot supply geometry.
+        var child = page
+        var verifiedRoot = false
+        for (depth in 0..MAX_DEPTH) {
+            val expectedParent = pages.parents[child]
+            if (field(child, COSName.PARENT) !== expectedParent) return null
+            if (expectedParent == null) { verifiedRoot = true; break }
+            child = expectedParent
+        }
+        if (!verifiedRoot) return null
+        fun inherited(name: COSName): COSBase? {
+            var node = page
+            repeat(MAX_DEPTH + 1) {
+                checkActive()
+                if (node.containsKey(name)) return field(node, name)
+                val parent = pages.parents[node] ?: return null
+                if (field(node, COSName.PARENT) !== parent) return null
+                node = parent
+            }
+            return null
+        }
+        fun box(value: COSBase?): List<Double>? {
+            val array = value as? COSArray ?: return null
+            if (array.size() != 4) return null
+            return (0..3).map { (direct(array.get(it)) as? COSNumber)?.floatValue()?.toDouble()
+                ?.takeIf { number -> number.isFinite() } ?: return null }
+        }
+        val media = box(inherited(COSName.MEDIA_BOX)) ?: return null
+        val rawCrop = inherited(COSName.CROP_BOX)
+        val crop = if (rawCrop == null) media else box(rawCrop) ?: return null
+        val rotation = inherited(COSName.ROTATE)
+        val degrees = if (rotation == null) 0L else (rotation as? COSInteger)?.longValue() ?: return null
+        if (degrees !in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() || degrees % 90 != 0L) return null
+        return PdfOutlinePageSpace.intersection(media, crop, ((degrees % 360 + 360) % 360).toInt())
     }
 
     private fun namedDestination(catalog: COSDictionary, name: String): COSBase? {

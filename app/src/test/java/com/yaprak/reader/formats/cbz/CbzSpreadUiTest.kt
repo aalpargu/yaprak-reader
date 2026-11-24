@@ -53,9 +53,9 @@ class CbzSpreadUiTest {
         val layouts = mutableListOf<TextLayoutResult>()
         compose.readerToolNodeWithText(text, useUnmergedTree = true).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single()
-        assertEquals(2f, layout.layoutInput.density.fontScale)
+        compose.waitForIdle(); assertEquals(2f, layout.layoutInput.density.fontScale)
         assertFalse((0 until layout.lineCount).any(layout::isLineEllipsized))
-        assertEquals(text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
+        compose.waitForIdle(); assertEquals(text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
     }
     @Test fun actualDoubleTypeWrapsChoiceAndScopeAndDisposedCallbackCannotRetarget() {
         largeFont(); val state = ready(); val events = mutableListOf<String>()
@@ -67,10 +67,10 @@ class CbzSpreadUiTest {
         val old = compose.readerToolNodeWithText(doubleLabel).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { callback = { events += "second" } }; compose.waitForIdle(); compose.runOnIdle { old() }
         assertTrue(events.isEmpty())
-        compose.readerToolNodeWithText(doubleLabel).performScrollTo().performClick(); assertEquals(listOf("second"), events)
+        compose.readerToolNodeWithText(doubleLabel).performScrollTo().performClick(); compose.waitForIdle(); assertEquals(listOf("second"), events)
         compose.runOnIdle { preferred = true }; readable(singleLabel)
-        compose.runOnIdle { old() }; assertEquals(listOf("second"), events)
-        compose.readerToolNodeWithText(singleLabel).performScrollTo().performClick(); assertEquals(listOf("second", "second"), events)
+        compose.runOnIdle { old() }; compose.waitForIdle(); assertEquals(listOf("second"), events)
+        compose.readerToolNodeWithText(singleLabel).performScrollTo().performClick(); compose.waitForIdle(); assertEquals(listOf("second", "second"), events)
         compose.runOnIdle { callback = null }; compose.readerToolNodeWithText(singleLabel).assertDoesNotExist(); compose.readerToolNodeWithText(help).assertDoesNotExist()
     }
     @Test @Config(qualifiers = "w640dp-h320dp-land-mdpi")
@@ -87,14 +87,14 @@ class CbzSpreadUiTest {
             val file = File(System.getProperty("yaprak.screenshotDir"), "cbz-spread-chrome-double-type.png")
             file.parentFile!!.mkdirs(); file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }; bitmap.recycle()
         }
-        compose.readerToolNodeWithText(singleLabel).performClick(); assertEquals(1, calls)
+        compose.readerToolNodeWithText(singleLabel).performClick(); compose.waitForIdle(); assertEquals(1, calls)
     }
     @Test fun onlyVisibleReadyComicCapabilityOffersSpreadAndOldHiddenActionIsRevoked() {
         var state by mutableStateOf<ReaderState>(ready()); var visible by mutableStateOf(true)
         var failed by mutableStateOf(false); var saveFailed by mutableStateOf(false); var calls = 0
         compose.setContent { YaprakTheme { Chrome(state, visible, failed, saveFailed, callback = { calls++ }) } }
         val old = compose.readerToolNodeWithText(doubleLabel).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
-        compose.runOnIdle { visible = false }; compose.runOnIdle { old() }; assertEquals(0, calls)
+        compose.runOnIdle { visible = false }; compose.runOnIdle { old() }; compose.waitForIdle(); assertEquals(0, calls)
         compose.readerToolNodeWithText(doubleLabel).assertDoesNotExist()
         compose.runOnIdle { visible = true; failed = true }; compose.readerToolNodeWithText(doubleLabel).assertDoesNotExist()
         compose.runOnIdle { failed = false; saveFailed = true }; compose.readerToolNodeWithText(doubleLabel).assertDoesNotExist()

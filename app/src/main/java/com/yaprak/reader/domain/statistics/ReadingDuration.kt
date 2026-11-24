@@ -24,10 +24,15 @@ data class ReadingDurationReceipt(
     val startedAt: Long,
     val endedAt: Long,
     val elapsedMillis: Long,
+    /** Distinct pages shown in this interval; null when the reader could not tell (never estimated). */
+    val pages: Int? = null,
 )
 
-data class ReadingDurationDay(val localDate: String, val elapsedMillis: Long)
-data class BookReadingDuration(val book: Book, val totalMillis: Long)
+const val MAX_READING_PAGES_PER_RECEIPT = 1_000_000
+
+/** [pages] is null for days with no page records (older data), so "unknown" is never shown as 0. */
+data class ReadingDurationDay(val localDate: String, val elapsedMillis: Long, val pages: Int? = null)
+data class BookReadingDuration(val book: Book, val totalMillis: Long, val pages: Int? = null)
 
 /** Only durable receipts for the current library and current book hashes contribute. */
 class ReadingDurationSnapshot(
@@ -56,6 +61,7 @@ interface ReadingDurationRepository {
 fun validateReadingDurationReceipt(receipt: ReadingDurationReceipt) {
     val valid = runCatching {
         require(receipt.id.length == 36 && UUID.fromString(receipt.id).toString() == receipt.id)
+        require(receipt.pages == null || receipt.pages in 0..MAX_READING_PAGES_PER_RECEIPT)
         require(receipt.bookId.isNotBlank() && receipt.bookId.length <= 200 &&
             receipt.bookId.none { it.isISOControl() || it.isSurrogate() })
         require(receipt.contentSha256.matches(READING_DURATION_HASH))

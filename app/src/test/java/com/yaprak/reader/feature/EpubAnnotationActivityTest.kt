@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.os.Handler
 import android.os.Looper
 import android.app.SearchManager
@@ -131,7 +132,7 @@ class EpubAnnotationActivityTest {
             model.editEndpoint(state, "https://assistant.example/v1/book-answer")
             model.editToken(model.state.value!!, "controlled-server-access-code-1234")
             model.send(model.state.value!!) {
-                host.get().javaClass.getDeclaredMethod("isSelectionAssistantCurrent",
+                host.get().javaClass.readerMethod("isSelectionAssistantCurrent",
                     com.yaprak.reader.domain.assistant.SelectedTextSourceRequest::class.java).apply { isAccessible = true }
                     .invoke(host.get(), state.request) as Boolean
             }
@@ -169,7 +170,7 @@ class EpubAnnotationActivityTest {
             assertEquals(pdfAnchor, state.request.pdfSourceAnchor); assertEquals(id, state.request.sourceSelectionId)
             assertNotNull(state.sources); assertEquals(1, proofs); assertEquals(0, sends)
             assertFalse(surface.coverage!!.invoke())
-            fun current() = host.get().javaClass.getDeclaredMethod("isSelectionAssistantCurrent",
+            fun current() = host.get().javaClass.readerMethod("isSelectionAssistantCurrent",
                 com.yaprak.reader.domain.assistant.SelectedTextSourceRequest::class.java).apply { isAccessible = true }
                 .invoke(host.get(), state.request) as Boolean
             assertTrue(current())
@@ -225,7 +226,7 @@ class EpubAnnotationActivityTest {
             host.create(); install(host.get(), ReaderViewModel(session.book.id, ReaderLoader { session }, storage))
             host.start().resume(); awaitSurface(host.get(), session); runCurrent()
             val surface = session.surfaces.single()
-            surface.tap(); runCurrent(); assertTrue(surface.coverage!!.invoke())
+            host.get().chrome = false; runCurrent() // reader opens full screen; keep tools hidden; assertTrue(surface.coverage!!.invoke())
             surface.selections += CompletableDeferred(SelectedText("Leaf", sourceAnchor = anchor))
             invoke(host.get(), "captureSelectedText"); runCurrent()
             val selection = property(host.get(), "getSelectionPreview") as SelectedTextPreview.Ready
@@ -238,7 +239,7 @@ class EpubAnnotationActivityTest {
             invoke(host.get(), "openOrientation"); invoke(host.get(), "openBrightness"); invoke(host.get(), "retryHighlights")
             assertFalse(property(host.get(), "getBrightnessOpen") as Boolean)
             assertEquals(0, surface.retries)
-            val navigate = host.get().javaClass.getDeclaredMethod("navigate", Function0::class.java).apply { isAccessible = true }
+            val navigate = host.get().javaClass.readerMethod("navigate", Function0::class.java).apply { isAccessible = true }
             assertFalse(navigate.invoke(host.get(), { surface.forward() }) as Boolean)
             assertEquals(0, surface.forwards); assertTrue(storage.records.isEmpty())
         } finally { host.pause().stop().destroy(); Dispatchers.resetMain() }
@@ -346,7 +347,7 @@ class EpubAnnotationActivityTest {
             host.create(); install(host.get(), ReaderViewModel(session.book.id, ReaderLoader { session }, storage))
             host.start().resume(); awaitSurface(host.get(), session); runCurrent()
             val surface = session.surfaces.single()
-            surface.tap(); runCurrent()
+            host.get().chrome = false; runCurrent() // reader opens full screen; keep tools hidden
             val beforeCapture = surface.observations
             assertTrue(surface.coverage!!.invoke())
             val late = CompletableDeferred<SelectedText?>()
@@ -372,7 +373,7 @@ class EpubAnnotationActivityTest {
             val session = Session(); val storage = Storage()
             host.create(); install(host.get(), ReaderViewModel(session.book.id, ReaderLoader { session }, storage))
             host.start().resume(); awaitSurface(host.get(), session); runCurrent()
-            val surface = session.surfaces.single(); surface.tap(); runCurrent()
+            val surface = session.surfaces.single(); host.get().chrome = false; runCurrent() // reader opens full screen; keep tools hidden
             val selected = "  İ/ı 😀\nexact & e\u0301  "
             registerWebSearch(host.get())
             surface.selections += CompletableDeferred(SelectedText(selected))
@@ -407,7 +408,7 @@ class EpubAnnotationActivityTest {
             }
             host.get().javaClass.getDeclaredField("externalTextTools\$delegate").apply { isAccessible = true }
                 .set(host.get(), lazy { AndroidSelectedTextTools(context) })
-            val surface = session.surfaces.single(); surface.tap(); runCurrent()
+            val surface = session.surfaces.single(); host.get().chrome = false; runCurrent() // reader opens full screen; keep tools hidden
             surface.selections += CompletableDeferred(SelectedText("Exact selection 🌿"))
             invoke(host.get(), "captureSelectedText"); runCurrent()
             val preview = property(host.get(), "getSelectionPreview") as SelectedTextPreview.Ready
@@ -429,7 +430,7 @@ class EpubAnnotationActivityTest {
             val session = Session()
             host.create(); install(host.get(), ReaderViewModel(session.book.id, ReaderLoader { session }, Storage()))
             host.start().resume(); awaitSurface(host.get(), session); runCurrent()
-            val surface = session.surfaces.single(); surface.tap(); runCurrent()
+            val surface = session.surfaces.single(); host.get().chrome = false; runCurrent() // reader opens full screen; keep tools hidden
             val late = CompletableDeferred<SelectedText?>(); surface.selections += late
             val beforePause = surface.observations
             invoke(host.get(), "captureSelectedText"); runCurrent()
@@ -457,7 +458,7 @@ class EpubAnnotationActivityTest {
             host.create(); install(host.get(), ReaderViewModel(session.book.id, ReaderLoader { session }, storage))
             installDictionary(host.get(), dictionary)
             host.start().resume(); awaitSurface(host.get(), session); runCurrent()
-            val surface = session.surfaces.single(); surface.tap(); runCurrent()
+            val surface = session.surfaces.single(); host.get().chrome = false; runCurrent() // reader opens full screen; keep tools hidden
             surface.selections += CompletableDeferred(SelectedText("two words"))
             invoke(host.get(), "captureSelectedText"); runCurrent(); assertTrue(words.isEmpty())
             invoke(host.get(), "lookupSelectionDictionary"); runCurrent()
@@ -488,7 +489,7 @@ class EpubAnnotationActivityTest {
             host.create(); install(host.get(), ReaderViewModel(session.book.id, ReaderLoader { session }, storage))
             installDictionary(host.get(), dictionary)
             host.start().resume(); awaitSurface(host.get(), session); runCurrent()
-            val surface = session.surfaces.single(); surface.tap(); runCurrent()
+            val surface = session.surfaces.single(); host.get().chrome = false; runCurrent() // reader opens full screen; keep tools hidden
             surface.selections += CompletableDeferred(SelectedText("leaf"))
             invoke(host.get(), "captureSelectedText"); runCurrent(); invoke(host.get(), "lookupSelectionDictionary"); runCurrent()
             assertTrue(dictionary.state.value!!.loading)
@@ -511,12 +512,12 @@ class EpubAnnotationActivityTest {
             val session = Session(); val storage = Storage()
             host.create(); install(host.get(), ReaderViewModel(session.book.id, ReaderLoader { session }, storage))
             host.start().resume().visible().windowFocusChanged(true); awaitSurface(host.get(), session); runCurrent()
-            val activity = host.get(); val surface = session.surfaces.single(); surface.tap(); runCurrent()
+            val activity = host.get(); val surface = session.surfaces.single(); activity.chrome = false; runCurrent()
             assertTrue(activity.window.decorView.hasWindowFocus())
             invoke(activity, "openBrightness")
-            activity.javaClass.getDeclaredMethod("editBrightness", Int::class.javaObjectType).apply { isAccessible = true }.invoke(activity, 50)
-            activity.javaClass.getDeclaredMethod("editBrightnessGesture", Boolean::class.javaPrimitiveType!!).apply { isAccessible = true }.invoke(activity, true)
-            activity.javaClass.getDeclaredMethod("applyBrightness", Int::class.javaObjectType).apply { isAccessible = true }.invoke(activity, 50)
+            activity.javaClass.readerMethod("editBrightness", Int::class.javaObjectType).apply { isAccessible = true }.invoke(activity, 50)
+            activity.javaClass.readerMethod("editBrightnessGesture", Boolean::class.javaPrimitiveType!!).apply { isAccessible = true }.invoke(activity, true)
+            activity.javaClass.readerMethod("applyBrightness", Int::class.javaObjectType).apply { isAccessible = true }.invoke(activity, 50)
             runCurrent(); assertEquals(0.5f, activity.window.attributes.screenBrightness, 0f)
             val root = activity.javaClass.getDeclaredField("brightnessGestureLayout").apply { isAccessible = true }
                 .get(activity) as ReaderBrightnessGestureLayout
@@ -557,7 +558,7 @@ class EpubAnnotationActivityTest {
     }
 
     private fun launchExternal(activity: ReaderActivity) {
-        activity.javaClass.getDeclaredMethod("launchSelectionTool", SelectedTextTool::class.java)
+        activity.javaClass.readerMethod("launchSelectionTool", SelectedTextTool::class.java)
             .apply { isAccessible = true }.invoke(activity, null)
     }
 
@@ -588,16 +589,16 @@ class EpubAnnotationActivityTest {
         ShadowLooper.idleMainLooper()
     }
     private fun invoke(activity: ReaderActivity, name: String) {
-        activity.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(name).apply { isAccessible = true }.invoke(activity)
     }
     private fun property(activity: ReaderActivity, getter: String): Any? =
-        activity.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(getter).apply { isAccessible = true }.invoke(activity)
     private fun annotation(activity: ReaderActivity) = property(activity, "getAnnotationRequest") as EpubAnnotationRequest?
     private fun setFlag(activity: ReaderActivity, setter: String, value: Boolean) {
-        activity.javaClass.getDeclaredMethod(setter, Boolean::class.javaPrimitiveType!!)
+        activity.javaClass.readerMethod(setter, Boolean::class.javaPrimitiveType!!)
             .apply { isAccessible = true }.invoke(activity, value)
     }
     private fun canMutate(activity: ReaderActivity, request: EpubAnnotationRequest) =
-        activity.javaClass.getDeclaredMethod("canMutateAnnotation", EpubAnnotationRequest::class.java)
+        activity.javaClass.readerMethod("canMutateAnnotation", EpubAnnotationRequest::class.java)
             .apply { isAccessible = true }.invoke(activity, request) as Boolean
 }

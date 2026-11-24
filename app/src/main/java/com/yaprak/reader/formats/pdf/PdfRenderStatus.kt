@@ -21,6 +21,7 @@ internal class PdfRenderStatus(private val pageCount: Int, initialPage: Int, ini
     private var waitingInitialPreferences = initialAnchorY != null
     private var initialAnchor = initialAnchorY
     private var completedNavigation = -1L
+    private var paintedNavigation = -1L
     private var scrollViewport: PdfScrollViewport? = null
     private var lastPaintedPoint: PdfResumePosition? = null
     private var lastPointRequiresBaselineReset = false
@@ -67,7 +68,12 @@ internal class PdfRenderStatus(private val pageCount: Int, initialPage: Int, ini
         if (!viewport.isValid) { clearDraw(); return }
         // Pending commands use the new geometry in Compose, retaining their original target/revision.
         if (previous == null || waitingInitialPreferences || !scrollNavigationSettled) return
-        val anchor = lastPaintedPoint?.takeIf { it.pageIndex == requested.value }?.anchorY
+        // Layout can settle before the first native paint. A restored chrome/inset resize must
+        // reproject that still-undrawn point command rather than replace it with a page head.
+        val undrawnAnchor = navigation.value.takeIf {
+            it.pageIndex == requested.value && it.revision != paintedNavigation
+        }?.anchorY
+        val anchor = lastPaintedPoint?.takeIf { it.pageIndex == requested.value }?.anchorY ?: undrawnAnchor
         nextScrollNavigation(requested.value, anchor, resetPointTransform = anchor != null && lastPointRequiresBaselineReset)
         clearDraw()
     }
@@ -215,6 +221,7 @@ internal class PdfRenderStatus(private val pageCount: Int, initialPage: Int, ini
             position.value = if (!waitingInitialPreferences && positionAvailable) PdfResumePosition(page,
                 anchorY?.takeIf { scrolling && it in 0..1_000_000 }) else null
             if (scrolling && !waitingInitialPreferences && positionAvailable) {
+                paintedNavigation = navigation.value.revision
                 // A page-only draw cannot resurrect a previously painted original point.
                 lastPaintedPoint = position.value?.takeIf { it.anchorY != null }
                 lastPointRequiresBaselineReset = lastPaintedPoint != null && pointRequiresBaselineReset

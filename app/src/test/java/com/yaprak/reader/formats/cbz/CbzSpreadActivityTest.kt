@@ -1,5 +1,6 @@
 package com.yaprak.reader.formats.cbz
 
+import com.yaprak.reader.readerMethod
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.os.Looper
@@ -70,10 +71,12 @@ class CbzSpreadActivityTest {
     }
     private fun surface(activity: ReaderActivity) = activity.javaClass.getDeclaredField("surface").apply { isAccessible = true }.get(activity) as ReaderSurface
     private fun flag(activity: ReaderActivity, setter: String, value: Boolean) {
-        activity.javaClass.getDeclaredMethod(setter, Boolean::class.javaPrimitiveType).apply { isAccessible = true }.invoke(activity, value)
+        activity.javaClass.readerMethod(setter, Boolean::class.javaPrimitiveType).apply { isAccessible = true }.invoke(activity, value)
     }
-    private fun toggle(activity: ReaderActivity, owner: ReaderSurface, expected: Boolean) {
-        activity.javaClass.getDeclaredMethod("toggleComicSpread", ReaderSurface::class.java, Boolean::class.javaPrimitiveType)
+    // The spread command lives in the tools panel; the reader now opens full screen, so show tools first.
+    private fun toggle(activity: ReaderActivity, owner: ReaderSurface, expected: Boolean, showTools: Boolean = true) {
+        if (showTools) activity.chrome = true
+        activity.javaClass.readerMethod("toggleComicSpread", ReaderSurface::class.java, Boolean::class.javaPrimitiveType)
             .apply { isAccessible = true }.invoke(activity, owner, expected)
     }
     @Test fun actualRoomAndRetainedActivityKeepRightAnchorAndRejectOldOwnerOrExpectedChoice() {
@@ -106,7 +109,7 @@ class CbzSpreadActivityTest {
                 flag(f.activity, setter, true); toggle(f.activity, owner, false); assertFalse("Admitted $setter", owner.comicSpread!!.preferred.value)
                 flag(f.activity, setter, false)
             }
-            flag(f.activity, "setChrome", false); toggle(f.activity, owner, false); assertFalse(owner.comicSpread!!.preferred.value)
+            flag(f.activity, "setChrome", false); toggle(f.activity, owner, false, showTools = false); assertFalse(owner.comicSpread!!.preferred.value)
             flag(f.activity, "setChrome", true); f.controller.windowFocusChanged(false)
             toggle(f.activity, owner, false); assertFalse(owner.comicSpread!!.preferred.value)
             f.controller.windowFocusChanged(true); f.controller.pause(); toggle(f.activity, owner, false); assertFalse(owner.comicSpread!!.preferred.value)
@@ -161,7 +164,7 @@ class CbzSpreadActivityTest {
             assertFalse(runBlocking { f.app.container.bookComicViewPreferences.observe(f.book.id, f.book.sha256).first().doublePagePreferred })
             runBlocking { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { database.openHelper.writableDatabase.execSQL("DROP TRIGGER refuse_comic") } }
             fun retry(lease: ComicBookViewPreferencesState) {
-                f.activity.javaClass.getDeclaredMethod("retryComicBookView", ReaderSurface::class.java, ComicBookViewPreferencesState::class.java)
+                f.activity.javaClass.readerMethod("retryComicBookView", ReaderSurface::class.java, ComicBookViewPreferencesState::class.java)
                     .apply { isAccessible = true }.invoke(f.activity, owner, lease)
             }
             retry(old); assertEquals(ComicBookViewStatus.SAVE_FAILED, vm.state.value.status)
@@ -172,7 +175,7 @@ class CbzSpreadActivityTest {
     }
     @Test fun nativePositionFlowsIntoActualActivityOnlyAfterDrawAndLastPageDoesNotInventReadPrefix() {
         fixture().use { f ->
-            fun displayed(): Int? = f.activity.javaClass.getDeclaredMethod("getBookPositionPercent")
+            fun displayed(): Int? = f.activity.javaClass.readerMethod("getBookPositionPercent")
                 .apply { isAccessible = true }.invoke(f.activity) as Int?
             idleUntil { settled(f.activity) }; val owner = surface(f.activity)
             assertNull(runBlocking { owner.bookPositionPercent.first() }); assertNull(displayed())

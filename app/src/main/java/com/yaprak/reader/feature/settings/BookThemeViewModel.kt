@@ -95,4 +95,23 @@ class BookThemeViewModel(private val repository: BookThemeRepository) : ViewMode
             }
         }
     }
+
+    /** One-tap change from the reader's quick appearance controls; ignored while any edit or load is active. */
+    fun quickSave(theme: ReadingTheme?) {
+        val (bookId, hash) = bookKey ?: return
+        val current = state.value
+        if (current.open || current.loading || current.loadFailed || current.saving) return
+        mutable.update { it.copy(saving = true, saveFailed = false) }
+        viewModelScope.launch {
+            try {
+                repository.save(bookId, hash, theme)
+                mutable.update { it.copy(saved = theme, draft = theme, saving = false) }
+            } catch (cancelled: CancellationException) {
+                mutable.update { it.copy(saving = false) }
+                throw cancelled
+            } catch (_: Exception) {
+                mutable.update { it.copy(saving = false, saveFailed = true) }
+            }
+        }
+    }
 }

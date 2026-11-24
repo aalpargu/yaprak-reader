@@ -294,6 +294,54 @@ internal class BookAssistantViewModel(
         }
     }
 
+    /**
+     * One-step "ask the book": prepares this book's index when needed, derives search terms from the
+     * question, previews the matching passages and — only when a connection is filled in — sends.
+     * Without a connection the user still gets the book's own matching passages, never a fabricated answer.
+     */
+    fun ask(revision: Long) {
+        val current = state.value
+        val book = current.book ?: return
+        if (!current.active || current.busy || current.revision != revision || current.question.isBlank() ||
+            current.sourceMode != BookAssistantSourceMode.KEYWORDS || !supportsBookSourceRetrieval(book.format)) return
+        val candidates = questionKeywordCandidates(current.question)
+        if (candidates.isEmpty()) { mutable.value = current.copy(sourceFailure = BookSourceFailure.INVALID_QUERY); return }
+        val connection = if (current.endpoint.isBlank() && current.accessToken.isBlank()) null else try {
+            BookAnswerConnection.create(current.endpoint, current.accessToken)
+        } catch (failure: BookAnswerException) {
+            mutable.value = current.copy(failure = failure.reason, revision = ++serial); return
+        }
+        start(clearSources = true) {
+            if (state.value.indexState == LibraryTextBookState.NOT_INDEXED) {
+                val result = try { index.rebuildBook(scope) {} } catch (failure: LibraryTextIndexException) {
+                    throw BookSourceException(if (failure.reason == LibraryTextIndexFailure.BUSY) BookSourceFailure.BUSY else BookSourceFailure.SOURCE)
+                }
+                currentCoroutineContext().ensureActive()
+                if (state.value.book?.copy(lastReadAt = null) != book.copy(lastReadAt = null)) throw BookSourceException(BookSourceFailure.SOURCE)
+                mutable.value = state.value.copy(indexState = result)
+                if (result != LibraryTextBookState.READY) throw BookSourceException(
+                    if (result == LibraryTextBookState.LIMIT) BookSourceFailure.LIMIT else BookSourceFailure.UNSUPPORTED)
+            }
+            var chosen: PreparedBookSources? = null
+            var keywords = ""
+            for (query in candidates) {
+                val sources = retriever.prepare(scope, query)
+                currentCoroutineContext().ensureActive()
+                requireSnapshot(sources, query, null, null, null, null)
+                chosen = sources; keywords = query
+                if (sources.references.isNotEmpty()) break
+            }
+            val sources = requireNotNull(chosen)
+            mutable.value = state.value.copy(keywords = keywords, sources = sources)
+            if (connection == null || sources.references.isEmpty()) return@start
+            val request = BookQuestionRequest.create(sources, state.value.question)
+            val answer = service.answer(request, connection)
+            currentCoroutineContext().ensureActive()
+            validateBookAnswer(request, answer)
+            mutable.value = state.value.copy(answer = answer)
+        }
+    }
+
     fun cancel(revision: Long) { if (state.value.active && state.value.revision == revision) invalidate() }
 
     fun open(citation: BookAnswerCitation, revision: Long, action: (LibraryTextHit) -> Unit) {

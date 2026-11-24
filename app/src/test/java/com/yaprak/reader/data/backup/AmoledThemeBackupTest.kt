@@ -105,7 +105,7 @@ class AmoledThemeBackupTest {
             seed(source); val expected = reviews(source.db).load()
             assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             val manifest = JSONObject(entries(docs.bytes!!).getValue("manifest.json").toString(Charsets.UTF_8))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertEquals(BackupResult.Restored(1), target.backup(docs).restore("content://backup"))
             assertEquals(amoled, target.settings.settings.first())
             assertEquals(ReadingTheme.AMOLED, RoomBookThemeRepository(target.db).observe(id, hash).first())

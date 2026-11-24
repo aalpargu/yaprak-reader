@@ -83,9 +83,9 @@ class BookPdfNavigationMigrationTest {
             val baseline = version25(name)
             assertEquals(25, baseline.size)
             Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-                .addMigrations(LibraryDatabase.MIGRATION_25_26).build().useDatabase { db ->
+                .addMigrations(LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build().useDatabase { db ->
                     val sql = db.openHelper.writableDatabase
-                    assertEquals(26, sql.version)
+                    assertEquals(28, sql.version)
                     baseline.forEach { (table, expected) -> assertEquals(table, expected, rows(sql.query("SELECT * FROM $table"))) }
                     sql.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
                     assertEquals(0L, sql.compileStatement("SELECT COUNT(*) FROM book_pdf_navigation_preferences").simpleQueryForLong())

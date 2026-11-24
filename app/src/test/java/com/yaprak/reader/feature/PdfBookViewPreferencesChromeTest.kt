@@ -49,7 +49,6 @@ class PdfBookViewPreferencesChromeTest {
         PdfBookViewOwner(id, hash, generation), value, value, PdfBookViewStatus.READY, revision = 4)
     private val preferenceActions get() = listOf(text(R.string.pdf_crop_title), "Sayfaya sığdır",
         "Genişliğe sığdır", text(R.string.pdf_spread_single))
-    private val footer = "Araçlar gizliyken tam ekran okuma · Sistem çubukları için ekran kenarından kaydır"
 
     @Test fun scrollChoiceNarrowLargeTypeKeepsTheWholeActionAndInvalidatesOldModeAndSpreadCallbacks() {
         verifyScrolling("pdf-scroll-narrow-double-type")
@@ -72,19 +71,18 @@ class PdfBookViewPreferencesChromeTest {
         compose.readerToolNodeWithText(text(R.string.pdf_scroll_enable)).performClick()
         readable(text(R.string.pdf_scroll_disable)); capture(screenshot)
         compose.readerToolNodeWithText(text(R.string.pdf_spread_single)).performScrollTo().assertIsNotEnabled()
-        compose.runOnIdle { oldMode(); oldSpread() }; assertEquals(listOf("scroll"), events)
-        readable(text(R.string.pdf_scroll_help)); readable(footer)
-        compose.readerToolNodeWithText("Kitaplık").assertIsDisplayed().assertIsEnabled()
+        compose.runOnIdle { oldMode(); oldSpread() }; compose.waitForIdle(); assertEquals(listOf("scroll"), events)
+        readable(text(R.string.pdf_scroll_help))
         val oldDisable = materialAction(text(R.string.pdf_scroll_disable))
         compose.runOnIdle { preferences.value = accepted().copy(status = PdfBookViewStatus.SAVING) }
         compose.readerToolNodeWithText(text(R.string.pdf_scroll_disable)).performScrollTo().assertIsNotEnabled()
-        compose.runOnIdle { oldDisable() }; assertEquals(listOf("scroll"), events)
+        compose.runOnIdle { oldDisable() }; compose.waitForIdle(); assertEquals(listOf("scroll"), events)
         compose.runOnIdle { preferences.value = accepted() }
-        compose.runOnIdle { oldDisable() }; assertEquals(listOf("scroll"), events)
+        compose.runOnIdle { oldDisable() }; compose.waitForIdle(); assertEquals(listOf("scroll"), events)
         compose.readerToolNodeWithText(text(R.string.pdf_scroll_disable)).performScrollTo().performClick()
-        assertEquals(listOf("scroll", "scroll"), events)
+        compose.waitForIdle(); assertEquals(listOf("scroll", "scroll"), events)
         compose.readerToolNodeWithText(text(R.string.pdf_spread_single)).performScrollTo().assertIsEnabled()
-        compose.runOnIdle { oldMode(); oldSpread() }; assertEquals(listOf("scroll", "scroll"), events)
+        compose.runOnIdle { oldMode(); oldSpread() }; compose.waitForIdle(); assertEquals(listOf("scroll", "scroll"), events)
     }
 
     @Test fun `narrow double type preserves durable summary saving gates errors retries and independent PDF tools`() {
@@ -111,7 +109,7 @@ class PdfBookViewPreferencesChromeTest {
         compose.runOnIdle { retainedCommands.forEach { it() } }
         assertTrue(events.isEmpty())
         compose.readerToolNodeWithText("Sayfaya sığdır").performScrollTo().assertIsEnabled().performClick()
-        assertEquals(listOf("fitPage:pdf-book"), events)
+        compose.waitForIdle(); assertEquals(listOf("fitPage:pdf-book"), events)
         events.clear()
 
         compose.runOnIdle {
@@ -128,7 +126,7 @@ class PdfBookViewPreferencesChromeTest {
         compose.runOnIdle { oldRetry() }
         assertTrue(events.isEmpty())
         compose.readerToolNodeWithText(text(R.string.pdf_book_view_retry)).performClick()
-        assertEquals(listOf("retry:other-book"), events)
+        compose.waitForIdle(); assertEquals(listOf("retry:other-book"), events)
     }
 
     private fun verifyLayoutAndStatuses(screenshot: String) {
@@ -141,22 +139,19 @@ class PdfBookViewPreferencesChromeTest {
             readable(label)
             compose.readerToolNodeWithText(label).assertIsEnabled().performClick()
         }
-        assertEquals(listOf("crop:pdf-book", "fitPage:pdf-book", "fitWidth:pdf-book", "spread:pdf-book"), events)
+        compose.waitForIdle(); assertEquals(listOf("crop:pdf-book", "fitPage:pdf-book", "fitWidth:pdf-book", "spread:pdf-book"), events)
         val summary = text(R.string.pdf_book_view_saved, 7, 14, text(R.string.pdf_book_view_fit_width))
         readable(summary)
-        compose.readerToolNodeWithText("Kitaplık").assertIsDisplayed()
         capture(screenshot)
         readable(text(R.string.pdf_spread_help))
-        listOf("Sayfaya git", text(R.string.pdf_thumbnails_title), "Önceki", "Sonraki", footer).forEach(::readable)
-        // Scrolling the lower Surface must not move the upper library/back control out of reach.
-        compose.readerToolNodeWithText("Kitaplık").assertIsDisplayed().assertIsEnabled()
+        listOf("Sayfaya git", text(R.string.pdf_thumbnails_title)).forEach(::readable)
 
         compose.runOnIdle { preferences.value = accepted().copy(status = PdfBookViewStatus.SAVING) }
         readable(text(R.string.pdf_book_view_saving))
         preferenceActions.forEach { compose.readerToolNodeWithText(it).performScrollTo().assertIsNotEnabled() }
         compose.readerToolNodeWithText(summary).assertDoesNotExist()
         compose.readerToolNodeWithText(text(R.string.pdf_book_view_retry)).assertDoesNotExist()
-        compose.readerToolNodeWithText("Sonraki").performScrollTo().assertIsEnabled()
+        compose.readerToolNodeWithText("Sonraki").assertIsEnabled()
 
         for ((status, message) in listOf(PdfBookViewStatus.SAVE_FAILED to R.string.pdf_book_view_save_error,
             PdfBookViewStatus.LOAD_FAILED to R.string.pdf_book_view_load_error,
@@ -171,10 +166,8 @@ class PdfBookViewPreferencesChromeTest {
                 val action = compose.readerToolNodeWithText(label).performScrollTo()
                 if (status == PdfBookViewStatus.SAVE_FAILED) action.assertIsEnabled() else action.assertIsNotEnabled()
             }
-            readable(footer)
-            compose.readerToolNodeWithText("Kitaplık").assertIsDisplayed()
         }
-        assertEquals(3, events.count { it == "retry:pdf-book" })
+        compose.waitForIdle(); assertEquals(3, events.count { it == "retry:pdf-book" })
     }
 
     @Composable private fun PreferenceChrome(reader: ReaderState, preferences: PdfBookViewPreferencesState,
@@ -213,7 +206,7 @@ class PdfBookViewPreferencesChromeTest {
         assertTrue("Missing text layout: $label", layout.lineCount > 0 && layout.size.width > 0)
         assertFalse("Overflowing text: $label", layout.hasVisualOverflow)
         assertFalse("Ellipsized text: $label", (0 until layout.lineCount).any(layout::isLineEllipsized))
-        assertEquals("Incomplete text: $label", layout.layoutInput.text.length,
+        compose.waitForIdle(); assertEquals("Incomplete text: $label", layout.layoutInput.text.length,
             layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
     }
 

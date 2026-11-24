@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.os.Handler
 import android.os.Looper
 import androidx.fragment.app.Fragment
@@ -56,6 +57,7 @@ class ReadingDurationActivityTest {
     }
     private class Surface : ReaderSurface {
         override val fragment = Fragment()
+        override val textSelection = TextSelectionSource { SelectedText("Explicit selection") }
         override val renderingFailed = MutableStateFlow(false)
         val visible = MutableStateFlow(false)
         var visibilitySubscriptions = 0
@@ -104,16 +106,15 @@ class ReadingDurationActivityTest {
                         applicationInfo = android.content.pm.ApplicationInfo().apply { packageName = "web.fixture"; enabled = true }
                     }
                 })
-            val preview = SelectedTextPreview.Ready("Explicit selection")
-            activity.javaClass.getDeclaredMethod("setSelectionPreview", SelectedTextPreview::class.java)
-                .apply { isAccessible = true }.invoke(activity, preview)
-            activity.javaClass.getDeclaredField("selectionSurface").apply { isAccessible = true }.set(activity, surface)
-            activity.javaClass.getDeclaredField("selectionBookIdentity").apply { isAccessible = true }
-                .set(activity, session.book.id to session.book.sha256)
-            activity.javaClass.getDeclaredMethod("setSelectionTools", SelectedTextToolsState::class.java)
+            // Capture through the real coordinator instead of fabricating its source lease with reflection.
+            invoke(activity, "captureSelectedText"); tick()
+            val preview = activity.javaClass.readerMethod("getSelectionPreview").apply { isAccessible = true }
+                .invoke(activity) as SelectedTextPreview.Ready
+            assertEquals("Explicit selection", preview.text)
+            activity.javaClass.readerMethod("setSelectionTools", SelectedTextToolsState::class.java)
                 .apply { isAccessible = true }.invoke(activity, SelectedTextToolsState(preview.sessionId, loading = false))
             refresh(); assertEquals(1000L, storage.total)
-            activity.javaClass.getDeclaredMethod("launchSelectionTool", SelectedTextTool::class.java)
+            activity.javaClass.readerMethod("launchSelectionTool", SelectedTextTool::class.java)
                 .apply { isAccessible = true }.invoke(activity, null)
             tick(); advance(2000); refresh()
             assertEquals(1000L, storage.total); assertTrue(progress.records.isEmpty())
@@ -125,7 +126,7 @@ class ReadingDurationActivityTest {
     @Test fun `brightness gesture preview excludes drag time and commit resumes without locator subscription or progress`() = runTest {
         withHost {
             enable(); val observations = surface.observations; advance(1000)
-            val previewSetter = activity.javaClass.getDeclaredMethod("setBrightnessGesturePreview", Int::class.javaObjectType).apply { isAccessible = true }
+            val previewSetter = activity.javaClass.readerMethod("setBrightnessGesturePreview", Int::class.javaObjectType).apply { isAccessible = true }
             previewSetter.invoke(activity, 60); refresh(); assertEquals(1000L, storage.total)
             advance(2000); refresh(); assertEquals(1000L, storage.total)
             previewSetter.invoke(activity, null); refresh(); advance(500); focus(false)
@@ -164,7 +165,7 @@ class ReadingDurationActivityTest {
                     }
                     "open" -> flag(activity, "setLoadFailed", true)
                     "crop" -> flag(activity, "setPdfCropApplyFailed", true)
-                    "indexed" -> activity.javaClass.getDeclaredMethod("setIndexedChapterState", IndexedChapterState::class.java)
+                    "indexed" -> activity.javaClass.readerMethod("setIndexedChapterState", IndexedChapterState::class.java)
                         .apply { isAccessible = true }.invoke(activity, IndexedChapterState(phase = IndexedChapterPhase.FAILED,
                             failure = IndexedChapterFailure.SOURCE))
                 }
@@ -271,11 +272,11 @@ class ReadingDurationActivityTest {
     private companion object {
         fun tick() { ShadowLooper.idleMainLooper() }
         fun flag(activity: ReaderActivity, setter: String, value: Boolean) {
-            activity.javaClass.getDeclaredMethod(setter, Boolean::class.javaPrimitiveType!!)
+            activity.javaClass.readerMethod(setter, Boolean::class.javaPrimitiveType!!)
                 .apply { isAccessible = true }.invoke(activity, value)
         }
         fun invoke(activity: ReaderActivity, method: String) {
-            activity.javaClass.getDeclaredMethod(method).apply { isAccessible = true }.invoke(activity)
+            activity.javaClass.readerMethod(method).apply { isAccessible = true }.invoke(activity)
         }
         fun awaitSurface(activity: ReaderActivity, session: Session, count: Int = 1) {
             val field = activity.javaClass.getDeclaredField("surface").apply { isAccessible = true }

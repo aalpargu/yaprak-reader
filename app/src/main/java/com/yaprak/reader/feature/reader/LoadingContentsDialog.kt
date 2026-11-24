@@ -14,7 +14,7 @@ import com.yaprak.reader.reader.ContentsLoadFailure
 
 @Composable
 internal fun LoadingContentsDialog(state: ContentsState, onSelect: (ContentsState, String) -> Boolean,
-    onRetry: (ContentsState) -> Unit, onClose: (ContentsRequest) -> Unit) {
+    onRetry: (ContentsState) -> Unit, onClose: (ContentsRequest) -> Unit, currentId: String? = null) {
     val request = state.request ?: return
     key(request) {
         val live by rememberUpdatedState(state)
@@ -22,14 +22,14 @@ internal fun LoadingContentsDialog(state: ContentsState, onSelect: (ContentsStat
             properties = DialogProperties(usePlatformDefaultWidth = false),
             onDismissRequest = { onClose(request) }, title = { Text("İçindekiler") },
             text = { ContentsLoadBody(state, { expected, id -> live === expected && onSelect(expected, id) },
-                { expected -> if (live === expected) onRetry(expected) }, { onClose(request) }) },
+                { expected -> if (live === expected) onRetry(expected) }, { onClose(request) }, currentId) },
             confirmButton = { TextButton({ onClose(request) }) { Text("Kapat") } })
     }
 }
 
 @Composable
 internal fun ContentsLoadBody(state: ContentsState, onSelect: (ContentsState, String) -> Boolean,
-    onRetry: (ContentsState) -> Unit, onClose: () -> Unit) {
+    onRetry: (ContentsState) -> Unit, onClose: () -> Unit, currentId: String? = null) {
     when {
         state.loading -> Text(stringResource(R.string.contents_loading))
         state.failure != null -> Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
@@ -43,6 +43,6 @@ internal fun ContentsLoadBody(state: ContentsState, onSelect: (ContentsState, St
             }
         }
         state.contents != null -> ContentsDialogBody(state.contents,
-            { id -> onSelect(state, id) }, onClose)
+            { id -> onSelect(state, id) }, onClose, currentId)
     }
 }

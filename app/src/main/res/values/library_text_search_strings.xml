@@ -38,8 +38,8 @@
     <string name="library_text_changed">Bu sonuç değişmiş veya artık geçerli değil. Yeniden ara.</string>
     <string name="library_text_open_failed">Kitap kaynağı açılamadı. Yeniden deneyebilirsin.</string>
     <string name="library_text_rebuild">İndeksi oluştur / yeniden oluştur</string>
-    <string name="library_text_rebuild_help">Bu işlem EPUB, TXT, FB2 ve Android 15+ PDF kitaplarını cihazda okur. PDF için yalnız yerleşik metin alınır; boş veya resim sayfalarında OCR başlatılmaz. Durdurulduğunda tamamlanan kitaplar ve yarım kalan kitabın önceki indeksi korunur. Kitap metni bir sunucuya gönderilmez.</string>
-    <string name="library_text_limits">Kitapta en fazla 1.000 bölüm/sayfa ve 10.000 indeks parçası; kitaplıkta 250.000 parça. EPUB kaynağı 2 MiB, PDF sayfa metni 512 bin karakter; TXT kaynağı 16 MiB ve 4.194.304 metin birimi sınırındadır. TXT en fazla 64 okuma parçasına ayrılır. FB2 kaynağı 16 MiB ile sınırlıdır. İndeks metin bütçesi kitapta 16 MiB, kitaplıkta 256 MiB’dir. Veritabanı diskte daha büyük olabilir. Sınıra ulaşan kitap hazır gösterilmez.</string>
+    <string name="library_text_rebuild_help">EPUB, TXT, FB2 ve PDF (Android 15+) kitaplarının metni cihazda dizine eklenir. Taranmış PDF sayfaları okunmaz. Durdurursan biten kitaplar korunur. Hiçbir şey sunucuya gönderilmez.</string>
+    <string name="library_text_limits">Çok büyük kitaplar (yaklaşık 16 MB üstü metin veya 1000’den fazla bölüm) aramaya eklenemez; bu kitaplar listede hazır görünmez.</string>
     <string name="library_text_build_starting">İndeks oluşturuluyor…</string>
     <string name="library_text_build_progress">İşlenen kitap: %1$d / %2$d</string>
     <string name="library_text_build_book">İşleniyor: %1$s</string>

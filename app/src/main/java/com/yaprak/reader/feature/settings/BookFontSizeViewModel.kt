@@ -97,5 +97,24 @@ class BookFontSizeViewModel(private val repository: BookFontSizeRepository) : Vi
         }
     }
 
+    /** One-tap change from the reader's quick appearance controls; ignored while any edit or load is active. */
+    fun quickSave(fontSizePercent: Int) {
+        val (bookId, hash) = bookKey ?: return
+        val current = state.value
+        if (!valid(fontSizePercent) || current.open || current.loading || current.loadFailed || current.saving) return
+        mutable.update { it.copy(saving = true, saveFailed = false) }
+        viewModelScope.launch {
+            try {
+                repository.save(bookId, hash, fontSizePercent)
+                mutable.update { it.copy(saved = fontSizePercent, draft = fontSizePercent, saving = false) }
+            } catch (cancelled: CancellationException) {
+                mutable.update { it.copy(saving = false) }
+                throw cancelled
+            } catch (_: Exception) {
+                mutable.update { it.copy(saving = false, saveFailed = true) }
+            }
+        }
+    }
+
     private fun valid(value: Int?): Boolean = value == null || (value in 75..200 && value % 5 == 0)
 }

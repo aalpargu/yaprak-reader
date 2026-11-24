@@ -171,9 +171,9 @@ class BookCompletionPersistenceTest {
         try {
             old(name)
             Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-                .addMigrations(LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build().useDb { db ->
+                .addMigrations(LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build().useDb { db ->
                     val sql = db.openHelper.writableDatabase
-                    assertEquals(26, sql.version)
+                    assertEquals(28, sql.version)
                     assertEquals(BookReadingStatus.COMPLETED, RoomLibraryRepository(db.books()).findById(book.id)!!.organization.readingStatus)
                     assertEquals("Exact note", sql.compileStatement("SELECT text FROM book_notes").simpleQueryForString())
                     assertEquals("saved", sql.compileStatement("SELECT locatorJson FROM reading_progress").simpleQueryForString())

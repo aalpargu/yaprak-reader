@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
@@ -83,7 +84,7 @@ class ReaderVolumeKeyActivityTest {
         override val resume = ReadingLocation("{\"href\":\"chapter.xhtml\"}", "chapter.xhtml")
         val surfaces = mutableListOf<Surface>()
         override fun createSurface(initial: ReadingLocation?, dark: Boolean, onTap: () -> Unit, onError: () -> Unit) =
-            Surface(book.format == BookFormat.PDF, book.format == BookFormat.CBZ).also { surfaces += it }
+            Surface(book.format == BookFormat.PDF, book.format.comic).also { surfaces += it }
         override fun close() = Unit
     }
     private class MainDispatcher : CoroutineDispatcher() {
@@ -105,8 +106,10 @@ class ReaderVolumeKeyActivityTest {
     @Test fun customTapMappingsRouteBothFormatsAndShowOrHideToolsWithoutSyntheticProgress() = runTest {
         for (format in BookFormat.entries) withHost(format) { activity, session, _, progress, _ ->
             val surface = session.surfaces.last()
-            val zones = activity.javaClass.getDeclaredMethod("getTapZones").apply { isAccessible = true }
+            val zones = activity.javaClass.readerMethod("getTapZones").apply { isAccessible = true }
                 .invoke(activity) as TapZoneViewModel
+            // Custom zones are on by default now; switch them off to check that disabled taps fall through.
+            zones.open(); zones.edit(TapZoneSettings(false)); zones.save(); tick()
             surface.visible.value = true; tick(); flag(activity, "chrome", false)
             assertFalse(surface.tap(.1f)); assertEquals(0, surface.backwards)
             zones.open(); zones.edit(TapZoneSettings(true, TapZoneAction.NEXT, TapZoneAction.MENU, TapZoneAction.PREVIOUS))
@@ -114,8 +117,9 @@ class ReaderVolumeKeyActivityTest {
             assertTrue(surface.tap(.1f)); assertEquals(1, surface.forwards)
             assertTrue(surface.tap(.9f)); assertEquals(1, surface.backwards)
             assertTrue(surface.tap(.5f)); assertTrue(getFlag(activity, "chrome"))
+            // An edge tap with tools shown turns the page and hides the tools in one move (0.186).
             assertTrue(surface.tap(.9f)); assertFalse(getFlag(activity, "chrome"))
-            assertEquals(1, surface.backwards)
+            assertEquals(2, surface.backwards)
             zones.open(); zones.edit(TapZoneSettings(true, TapZoneAction.NONE, TapZoneAction.MENU, TapZoneAction.NEXT))
             zones.save(); tick()
             assertTrue(surface.tap(.1f)); assertEquals(1, surface.forwards)
@@ -127,7 +131,7 @@ class ReaderVolumeKeyActivityTest {
     @Test fun enabledTapCannotFallThroughWhenSelectionModalVisibilityOrFocusBlocksIt() = runTest {
         withHost { activity, session, keys, progress, host ->
             val surface = session.surfaces.last()
-            val zones = activity.javaClass.getDeclaredMethod("getTapZones").apply { isAccessible = true }
+            val zones = activity.javaClass.readerMethod("getTapZones").apply { isAccessible = true }
                 .invoke(activity) as TapZoneViewModel
             zones.open(); zones.edit(TapZoneSettings(true)); zones.save(); tick()
             surface.visible.value = true; tick(); flag(activity, "chrome", false)
@@ -194,7 +198,7 @@ class ReaderVolumeKeyActivityTest {
                 assertEquals("Blocked by $name", 0, surface.forwards)
                 flag(activity, name, false)
             }
-            val durationError = activity.javaClass.getDeclaredMethod("setDurationFailure",
+            val durationError = activity.javaClass.readerMethod("setDurationFailure",
                 com.yaprak.reader.domain.statistics.ReadingDurationFailure::class.java).apply { isAccessible = true }
             durationError.invoke(activity, com.yaprak.reader.domain.statistics.ReadingDurationFailure.SOURCE)
             send(activity, down = down++); assertEquals(0, surface.forwards)
@@ -319,15 +323,24 @@ class ReaderVolumeKeyActivityTest {
             action: Int = KeyEvent.ACTION_DOWN, repeat: Int = 0) =
             activity.window.callback.dispatchKeyEvent(KeyEvent(down, down + repeat, action, code, repeat))
         fun flag(activity: ReaderActivity, name: String, value: Boolean) {
+            if (name == "resetPending" || name == "resetRefreshFailed") {
+                // Reset state moved to ReaderAppearanceCoordinator; the Activity only reads it.
+                val coordinator = activity.appearanceCoordinator
+                @Suppress("UNCHECKED_CAST")
+                val state = coordinator.javaClass.getDeclaredField("$name\$delegate").apply { isAccessible = true }
+                    .get(coordinator) as androidx.compose.runtime.MutableState<Boolean>
+                state.value = value
+                return
+            }
             val setter = "set" + name.replaceFirstChar { it.uppercase() }
-            val method = activity.javaClass.declaredMethods.firstOrNull { it.name == setter }
+            val method = activity.javaClass.declaredMethods.firstOrNull { it.name == setter || it.name == "$setter\$app_debug" }
             if (method != null) method.apply { isAccessible = true }.invoke(activity, value)
             else activity.javaClass.getDeclaredField(name).apply { isAccessible = true }.setBoolean(activity, value)
         }
         fun getFlag(activity: ReaderActivity, name: String) =
-            activity.javaClass.getDeclaredMethod("get" + name.replaceFirstChar { it.uppercase() })
+            activity.javaClass.readerMethod("get" + name.replaceFirstChar { it.uppercase() })
                 .apply { isAccessible = true }.invoke(activity) as Boolean
         fun invoke(activity: ReaderActivity, name: String) =
-            activity.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(activity)
+            activity.javaClass.readerMethod(name).apply { isAccessible = true }.invoke(activity)
     }
 }

@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature.library
 
+import androidx.compose.ui.platform.testTag
 import android.graphics.Bitmap
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.yaprak.reader.R
@@ -42,6 +48,8 @@ import java.util.Date
 @Composable
 internal fun BookDetailsDialog(book: Book, onRead: () -> Unit, onExport: () -> Unit,
     exportEnabled: Boolean, onDismiss: () -> Unit,
+    progressPercent: Int? = null,
+    readingMillis: Long? = null,
     removeEnabled: Boolean = true, removalState: BookRemovalState = BookRemovalState.Idle,
     onRemove: () -> Unit = {}, onClearRemovalError: () -> Unit = {},
     metadataEdit: BookMetadataEditState = BookMetadataEditState.Idle,
@@ -121,11 +129,14 @@ internal fun BookDetailsDialog(book: Book, onRead: () -> Unit, onExport: () -> U
         })
     if (!editing && !organizing) AlertDialog(
         onDismissRequest = { if (!removing && !saving && !coverBusy) onDismiss() },
-        title = { Text(stringResource(R.string.book_details)) },
+        title = { Text(book.title, maxLines = 3, overflow = TextOverflow.Ellipsis) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(book.title, style = MaterialTheme.typography.headlineSmall)
-                Text(book.authors ?: stringResource(R.string.unknown_author))
+                if (onChangeCover == null) Text(book.authors ?: stringResource(R.string.unknown_author))
+                readingSummary(progressPercent, book.lastReadAt, readingMillis)?.let { summary ->
+                    Text(summary, Modifier.testTag("book-details-reading"), style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary)
+                }
                 onChangeCover?.let { change ->
                     // A delayed semantics/touch action belongs to the revision it was rendered for.
                     // Recreate Material's callback holders when that revision changes; the shared
@@ -137,7 +148,35 @@ internal fun BookDetailsDialog(book: Book, onRead: () -> Unit, onExport: () -> U
                             coverLoader = coverLoader)
                     }
                 }
-                Detail(stringResource(R.string.organization_reading_status), readingStatusLabel(book.organization.readingStatus))
+                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    DetailAction(stringResource(R.string.organize_book), androidx.compose.material.icons.Icons.Default.Star,
+                        editEnabled && !saving && !removing && !coverBusy) {
+                        onClearOrganizationState(book.id, book.sha256)
+                        organizing = true
+                    }
+                    DetailAction("Başlığı ve yazarı düzenle", androidx.compose.material.icons.Icons.Default.Edit,
+                        editEnabled && !saving && !removing && !coverBusy) {
+                        titleDraft = book.title
+                        authorsDraft = book.authors.orEmpty()
+                        submitted = false
+                        onClearMetadataState(book.id)
+                        editing = true
+                    }
+                    DetailAction(stringResource(R.string.export_book), androidx.compose.material.icons.Icons.Default.Share,
+                        exportEnabled && !coverBusy, stringResource(R.string.export_file_only)) { if (!liveCoverBusy) onExport() }
+                    onStudyExport?.let { export ->
+                        DetailAction(stringResource(R.string.export_study_records), androidx.compose.material.icons.Icons.AutoMirrored.Filled.Send,
+                            exportEnabled && !removing && !saving && !coverBusy,
+                            stringResource(if (studyExportFormatsAvailable) R.string.export_study_formats_body else R.string.export_study_records_body)) {
+                            if (!liveCoverBusy) export()
+                        }
+                    }
+                    DetailAction(stringResource(R.string.remove_book), androidx.compose.material.icons.Icons.Default.Delete,
+                        removeEnabled && !removing && !coverBusy, destructive = true) { if (!liveCoverBusy) confirmRemoval = true }
+                }
+                androidx.compose.material3.HorizontalDivider()
+                if (book.organization.readingStatus != com.yaprak.reader.domain.library.BookReadingStatus.UNSET)
+                    Detail(stringResource(R.string.organization_reading_status), readingStatusLabel(book.organization.readingStatus))
                 if (book.organization.favorite) Text(stringResource(R.string.organization_favorite))
                 book.organization.series?.let { Detail(stringResource(R.string.organization_series), it) }
                 book.organization.genre?.let { Detail(stringResource(R.string.organization_genre), it) }
@@ -150,42 +189,6 @@ internal fun BookDetailsDialog(book: Book, onRead: () -> Unit, onExport: () -> U
                 Detail(stringResource(R.string.details_size), Formatter.formatFileSize(LocalContext.current, book.byteSize))
                 book.pageCount?.let { Detail(stringResource(R.string.details_pages), it.toString()) }
                 Detail(stringResource(R.string.details_added), DateFormat.getDateInstance().format(Date(book.importedAt)))
-                TextButton(onClick = {
-                    onClearOrganizationState(book.id, book.sha256)
-                    organizing = true
-                }, enabled = editEnabled && !saving && !removing && !coverBusy) {
-                    Text(stringResource(R.string.organize_book))
-                }
-                TextButton(onClick = {
-                    titleDraft = book.title
-                    authorsDraft = book.authors.orEmpty()
-                    submitted = false
-                    onClearMetadataState(book.id)
-                    editing = true
-                }, enabled = editEnabled && !saving && !removing && !coverBusy) {
-                    Text("Başlığı ve yazarı düzenle")
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = { if (!liveCoverBusy) onExport() }, enabled = exportEnabled && !coverBusy) {
-                        Text(stringResource(R.string.export_book))
-                    }
-                    Text(stringResource(R.string.export_file_only), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                onStudyExport?.let { export ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = { if (!liveCoverBusy) export() }, enabled = exportEnabled && !removing && !saving && !coverBusy) {
-                            Text(stringResource(R.string.export_study_records))
-                        }
-                        Text(stringResource(if (studyExportFormatsAvailable) R.string.export_study_formats_body
-                            else R.string.export_study_records_body),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                TextButton(onClick = { if (!liveCoverBusy) confirmRemoval = true }, enabled = removeEnabled && !removing && !coverBusy) {
-                    Text(stringResource(R.string.remove_book), color = MaterialTheme.colorScheme.error)
-                }
             }
         },
         confirmButton = {
@@ -266,9 +269,43 @@ internal fun BookDetailsDialog(book: Book, onRead: () -> Unit, onExport: () -> U
 }
 
 @Composable
+private fun DetailAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, enabled: Boolean,
+    supporting: String? = null, destructive: Boolean = false, onClick: () -> Unit) {
+    TextButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 6.dp)) {
+        val tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        androidx.compose.material3.Icon(icon, contentDescription = null, tint = tint)
+        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+            Text(label, color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+            if (supporting != null) Text(supporting, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 private fun Detail(label: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodyMedium)
     }
+}
+
+/** "%42 okundu · son okuma: dün" — only facts the library already stores; nothing for an unread book. */
+internal fun readingSummary(percent: Int?, lastReadAt: Long?, readingMillis: Long? = null, today: java.time.LocalDate = java.time.LocalDate.now(),
+    zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String? {
+    val progress = percent?.takeIf { it in 1..100 }?.let { if (it == 100) "Bitti" else "%$it okundu" }
+    val last = lastReadAt?.takeIf { it > 0 }?.let { millis ->
+        val day = java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+        when (day) {
+            today -> "bugün"
+            today.minusDays(1) -> "dün"
+            else -> day.format(java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy", java.util.Locale.forLanguageTag("tr-TR")))
+        }
+    }?.let { "son okuma: $it" }
+    val time = readingMillis?.takeIf { it >= 60_000 }?.let { millis ->
+        val minutes = millis / 60_000; val hours = minutes / 60
+        if (hours > 0) "toplam $hours sa ${minutes % 60} dk" else "toplam $minutes dk"
+    }
+    return listOfNotNull(progress, last, time).joinToString(" · ").ifBlank { null }
 }

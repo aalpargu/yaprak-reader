@@ -81,9 +81,9 @@ class BookComicViewPreferencesMigrationTest {
             val baseline = version24(name)
             assertEquals(24, baseline.size)
             Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-                .addMigrations(LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build().useDatabase { db ->
+                .addMigrations(LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build().useDatabase { db ->
                     val sql = db.openHelper.writableDatabase
-                    assertEquals(26, sql.version)
+                    assertEquals(28, sql.version)
                     baseline.forEach { (table, expected) -> assertEquals(table, expected, rows(sql.query("SELECT * FROM $table"))) }
                     sql.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
                     assertEquals(ReadingTextAlignment.JUSTIFY, RoomBookTextAlignmentRepository(db).observe(book.id, book.sha256).first())

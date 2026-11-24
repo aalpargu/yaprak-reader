@@ -3,6 +3,10 @@
     <!-- ML Kit's transport checks connectivity; its normal permission needs no runtime prompt. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Optional daily reading reminder: asked only when the user turns it on. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Re-arms the reminder alarm after a restart; nothing else runs at boot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Library imports never require network or broad storage access. -->
     <queries>
         <intent>
@@ -15,7 +19,8 @@
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Yaprak">
@@ -23,6 +28,22 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- "Open with Yaprak" from file managers, downloads and messaging apps. The document is
+                 copied into the private library by the same importer used by the picker. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/x-fictionbook+xml" />
+                <data android:mimeType="application/x-fictionbook" />
+                <data android:mimeType="application/vnd.comicbook+zip" />
+                <data android:mimeType="application/x-cbz" />
+                <data android:mimeType="application/vnd.comicbook-rar" />
+                <data android:mimeType="application/x-cbr" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
             </intent-filter>
         </activity>
         <activity android:name=".feature.reader.ReaderActivity" android:exported="false" />
@@ -33,5 +54,20 @@
         <activity android:name=".feature.search.LibraryTextSearchActivity" android:exported="false" />
         <activity android:name=".feature.assistant.BookAssistantActivity" android:exported="false" />
         <activity android:name=".feature.statistics.ReadingStatisticsActivity" android:exported="false" />
+        <receiver android:name=".data.reminder.ReadingReminderReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".feature.widget.ContinueReadingWidget" android:exported="true"
+            android:label="@string/continue_reading_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_continue_reading_info" />
+        </receiver>
     </application>
 </manifest>

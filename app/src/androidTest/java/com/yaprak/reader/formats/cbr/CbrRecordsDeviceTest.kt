@@ -102,7 +102,7 @@ class CbrRecordsDeviceTest {
                 val archiveBytes = backupFile.readBytes()
                 ZipFile(backupFile).use { zip ->
                     val manifest = JSONObject(zip.getInputStream(zip.getEntry("manifest.json")).bufferedReader().readText())
-                    assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+                    assertEquals(26, manifest.getInt("formatVersion")); assertEquals(27, manifest.getInt("databaseVersion"))
                     assertArrayEquals(original, zip.getInputStream(zip.getEntry("books/${book.storageName}")).readBytes())
                 }
                 var target = database("target")

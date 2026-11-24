@@ -1,5 +1,6 @@
 package com.yaprak.reader.formats
 
+import com.yaprak.reader.readerMethod
 import android.app.Application
 import android.graphics.*
 import android.widget.FrameLayout
@@ -315,7 +316,7 @@ class PdfScrollUiTest {
             // Two gestures before the neighbor receives a primary draw must keep only the latest points.
             val latestStart = PdfTextPoint(.25, .25)
             val latestStop = PdfTextPoint(.75, .4)
-            val select = PdfReaderFragment::class.java.getDeclaredMethod("select", Int::class.javaPrimitiveType,
+            val select = PdfReaderFragment::class.java.readerMethod("select", Int::class.javaPrimitiveType,
                 PdfTextPoint::class.java, PdfTextPoint::class.java).apply { isAccessible = true }
             compose.runOnUiThread {
                 select.invoke(f.surface.fragment, 2, PdfTextPoint(.1, .1), PdfTextPoint(.2, .2))
@@ -348,7 +349,8 @@ class PdfScrollUiTest {
             val after = compose.onNodeWithTag("pdf-continuous-pages").fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
             assertEquals(before, after, .001f); assertEquals(3, status(f).requestedPage.value)
             draw(f)
-            assertEquals(PdfPosition.encode(3), f.surface.bookmarkNavigator!!.capture()!!.location)
+            // Continuous bookmarks carry the reading point since 0.149; the page must be the panned one.
+            assertEquals(3, PdfPosition.decodeResumeOrNull(f.surface.bookmarkNavigator!!.capture()!!.location, 100)!!.pageIndex)
         } finally { f.close() }
     }
     @Test fun rapidExternalNavigationCannotPublishACancelledOffscreenNativeRender() = runBlocking {

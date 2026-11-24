@@ -107,5 +107,6 @@ class BookAssistantActivity : ComponentActivity() {
             val current = model.state.value
             if (mayAct() && current.revision == revision && !current.busy && current.book != null &&
                 current.indexState == com.yaprak.reader.domain.search.LibraryTextBookState.NOT_INDEXED) action()
-        } })
+        } },
+        onAsk = { revision -> if (mayAct()) model.ask(revision) })
 }

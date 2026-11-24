@@ -28,7 +28,7 @@ class DocxBackupBoundaryTest {
         "book_epub_text_alignment_overrides","book_epub_reading_mode_overrides","book_cbz_view_preferences",
         "book_epub_margin_overrides","book_epub_line_spacing_overrides","book_epub_spacing_overrides",
         "saved_words","book_notes","epub_passages","book_organizations","book_completion_events","book_covers",
-        "reading_duration_receipts","book_pdf_view_preferences","book_pdf_navigation_preferences","epub_range_passages",
+        "reading_duration_receipts","book_pdf_view_preferences","book_pdf_navigation_preferences", "reading_page_receipts", "pdf_ink_strokes","epub_range_passages",
         "pdf_annotations","word_review_events","word_schedules")
     private fun records(): BackupRecords {
         val bytes = original(); val sha = hash(bytes)
@@ -46,14 +46,14 @@ class DocxBackupBoundaryTest {
 
     @Test fun currentDocxManifestAndRecordsPreserveOriginalIdentityAndReflowableAppearance() {
         val records = records(); val encoded = BackupRecordsCodec.encode(records)
-        val decoded = BackupRecordsCodec.decode(encoded,25)
+        val decoded = BackupRecordsCodec.decode(encoded,BackupRecordsCodec.FORMAT_VERSION)
         assertEquals(records.books,decoded.books)
         assertEquals("DOCX",decoded.rows.getValue("books").single().getString("format"))
         assertEquals("JUSTIFY",decoded.rows.getValue("book_epub_text_alignment_overrides").single().getString("alignment"))
         assertEquals("PAGED",decoded.rows.getValue("book_epub_reading_mode_overrides").single().getString("mode"))
         val manifest = BackupRecordsCodec.encodeManifest(records,encoded,hash(encoded))
-        assertEquals(26,BackupRecordsCodec.decodeManifest(manifest).formatVersion)
-        assertEquals(26,JSONObject(manifest.toString(Charsets.UTF_8)).getInt("databaseVersion"))
+        assertEquals(28,BackupRecordsCodec.decodeManifest(manifest).formatVersion)
+        assertEquals(28,JSONObject(manifest.toString(Charsets.UTF_8)).getInt("databaseVersion"))
     }
 
     @Test fun everyOlderHeaderRejectsDocxBooksInBothRecordsAndManifestBeforeRestoreMutation() {
@@ -75,7 +75,9 @@ class DocxBackupBoundaryTest {
         assertFalse(validBackupBookSignature(file,"DOCX","source.zip",25))
         assertFalse(validBackupBookSignature(file,"DOCX","source.docx.zip",25))
         assertTrue(validBackupBookSignature(file,"DOCX","source.docx",26))
-        assertFalse(validBackupBookSignature(file,"DOCX","source.docx",27))
+        assertTrue(validBackupBookSignature(file,"DOCX","source.docx",27))
+        assertTrue(validBackupBookSignature(file,"DOCX","source.docx",28))
+        assertFalse(validBackupBookSignature(file,"DOCX","source.docx",29))
         assertArrayEquals(bytes,file.readBytes())
         assertEquals(listOf(file.name),file.parentFile!!.listFiles()!!.map { it.name })
     }
@@ -106,9 +108,9 @@ class DocxBackupBoundaryTest {
             .put("startOffset",0).put("endOffset",3).put("textSha256","a".repeat(64)).put("extractionVersion",1))
         val originalBook=tables.getJSONArray("books").getJSONObject(0)
         originalBook.put("format","EPUB").put("storageName","$id.epub").put("originalName","source.epub")
-        assertEquals(1,BackupRecordsCodec.decode(json.toString().toByteArray(),25).rows.getValue("observed_text").size)
+        assertEquals(1,BackupRecordsCodec.decode(json.toString().toByteArray(),BackupRecordsCodec.FORMAT_VERSION).rows.getValue("observed_text").size)
         originalBook.put("format","DOCX").put("storageName","$id.docx").put("originalName","source.docx")
-        val problem=runCatching { BackupRecordsCodec.decode(json.toString().toByteArray(),25) }.exceptionOrNull()
+        val problem=runCatching { BackupRecordsCodec.decode(json.toString().toByteArray(),BackupRecordsCodec.FORMAT_VERSION) }.exceptionOrNull()
         assertEquals(BackupFailure.INVALID_ARCHIVE,(problem as BackupProblem).reason)
     }
 

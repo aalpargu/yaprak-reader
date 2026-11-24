@@ -10,6 +10,8 @@ internal fun JSONObject.asPreSpacingSettings(): JSONObject = apply {
 
 /** Fixture conversion only: formats 1..13 contained no per-book spacing table. */
 internal fun JSONObject.asPreBookSpacingTables(): JSONObject = apply {
+    getJSONObject("tables").remove("pdf_ink_strokes")
+    getJSONObject("tables").remove("reading_page_receipts")
     getJSONObject("tables").remove("book_pdf_navigation_preferences")
     getJSONObject("tables").remove("book_cbz_view_preferences")
     getJSONObject("tables").remove("book_epub_reading_mode_overrides")

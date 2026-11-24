@@ -79,7 +79,7 @@ internal object BoundedXhtmlTextParser {
      * EPUB XHTML uses UTF-8 or UTF-16. Decoding is strict and only used for this bounded preflight;
      * SAX still consumes the unchanged bytes and performs normal XML newline/entity decoding.
      */
-    private fun preflight(bytes: ByteArray, checkActive: () -> Unit): String {
+    internal fun preflight(bytes: ByteArray, checkActive: () -> Unit): String {
         fun byte(index: Int) = bytes.getOrNull(index)?.toInt()?.and(255)
         val encoding = when {
             byte(0) == 0 && byte(1) == 0 && (byte(2) == 254 || byte(2) == 0) -> fail(TextExtractionFailure.UNSUPPORTED)

@@ -39,7 +39,11 @@ internal fun PdfPages(
     scrollAllowed: () -> Boolean = { true },
     onScrolledPrimary: () -> Unit = {},
     horizontalScrolling: Boolean = false,
+    selectionController: PdfTextSelectionSource? = null,
 ) {
+    var previousPage by remember { mutableIntStateOf(page) }
+    val direction = page.compareTo(previousPage)
+    SideEffect { previousPage = page }
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF232725)).systemBarsPadding()) {
         val doublePage = !scrolling && doublePagePreferred && maxWidth >= 600.dp && pageCount > 1
         SideEffect { status.setDoublePage(doublePage) }
@@ -51,11 +55,11 @@ internal fun PdfPages(
                 if (horizontalScrolling) PdfHorizontalPages(renderPage, checkNotNull(loadPageDimensions), pageCount, status,
                     with(density) { maxWidth.roundToPx() }, with(density) { maxHeight.roundToPx() }, onTap,
                     nightMode, fitRequest, cropRequest, scrollAllowed, onScrolledPrimary, onTextSelection,
-                    annotationPaint, drawProofHost, onReaderTap)
+                    annotationPaint, drawProofHost, onReaderTap, selectionController)
                 else PdfScrollPages(renderPage, checkNotNull(loadPageDimensions), pageCount, status,
                     with(density) { maxWidth.roundToPx() }, with(density) { maxHeight.roundToPx() }, onTap,
                     nightMode, fitRequest, cropRequest, scrollAllowed, onScrolledPrimary, onTextSelection,
-                    annotationPaint, drawProofHost, onReaderTap)
+                    annotationPaint, drawProofHost, onReaderTap, selectionController)
             }
         } else {
             // PDF page indices have a stable left-to-right ordering, independent of app UI locale.
@@ -64,6 +68,7 @@ internal fun PdfPages(
                 Row(Modifier.fillMaxSize().onGloballyPositioned { rowCoordinates = it }, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     pages.forEach { index ->
                         key(page, index, doublePage) {
+                            val arrival = remember { direction }
                             val witness = remember(drawProofHost, index) { drawProofHost?.let { host ->
                                 PdfPageDrawWitness { host.revoke(); host.invalidate() }
                             } }
@@ -77,7 +82,7 @@ internal fun PdfPages(
                                     status.finishRender(rendered, ticket); drawProofHost?.invalidate()
                                 },
                                     nightMode, onSwipePage, status::failRender, fitRequest, cropRequest,
-                                    applySystemBarsPadding = false, onTextSelection = onTextSelection, drawWitness = witness,
+                                    applySystemBarsPadding = false, onTextSelection = onTextSelection, drawWitness = witness, selectionController = selectionController, arrivalDirection = arrival,
                                     verifiedAnnotations = (annotationPaint as? PdfAnnotationPaintState.Ready)?.annotations.orEmpty(),
                                     onContentTap = { point, viewport ->
                                         val row = rowCoordinates

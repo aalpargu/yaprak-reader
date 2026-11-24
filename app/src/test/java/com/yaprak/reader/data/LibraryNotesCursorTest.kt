@@ -89,12 +89,12 @@ class LibraryNotesCursorTest {
 
     private fun row(index: Int): Array<Any?> = arrayOf("note-$index", "book", "a".repeat(64), "Başlık", null,
         "EPUB", "Metin $index", index.toLong(), null, null,
-        "BOOK_NOTE", null, null, null, null, null, 0L, null, null, null, null, null)
+        "BOOK_NOTE", null, null, null, null, null, 0L, null, null, null, null, null, 0L)
 
     private class TrackedCursor : MatrixCursor(arrayOf("id", "bookId", "contentSha256", "title", "authors",
         "format", "text", "createdAt", "pdfPageIndex", "pageCount", "source", "sourceText",
         "resourceHref", "nodeTextSha256", "startOffset", "endOffset", "revision", "highlightColor", "anchorVersion",
-        "anchorJson", "anchorKey", "selectionKey")) {
+        "anchorJson", "anchorKey", "selectionKey", "highlightOnly")) {
         var advances = 0
         var closes = 0
         var cancelJob: Job? = null

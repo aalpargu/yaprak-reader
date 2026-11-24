@@ -31,6 +31,7 @@ interface ReaderSurface {
     val epubHighlights: EpubHighlights? get() = null
     val pageNavigator: PageNavigator? get() = null
     val bookPositionNavigator: BookPositionNavigator? get() = null
+    val readAloud: ReadAloudSource? get() = null
     val appearance: EpubAppearanceController? get() = null
     val epubImageFilter: EpubImageFilterController? get() = null
     val pdfNightMode: PdfNightModeController? get() = null
@@ -45,6 +46,8 @@ interface ReaderSurface {
     val comicSpread: ComicSpreadController? get() = null
     val textSelection: TextSelectionSource? get() = null
     val pdfOcr: PdfOcrSource? get() = null
+    /** Highlighter pen over PDF pages; the surface owns its toolbar, gestures and storage. */
+    val pdfInk: PdfInkTool? get() = null
     /** Opens already verified original annotation geometry; it does not create text-selection evidence. */
     val pdfAnnotationNavigator: PdfAnnotationNavigator? get() = null
     val pageLabel: Flow<String?> get() = flowOf(null)
@@ -113,6 +116,14 @@ interface ComicSpreadController {
     fun restore(enabled: Boolean): Boolean
 }
 
+/** While [active], one finger paints instead of turning pages, selecting text or toggling controls. */
+interface PdfInkTool {
+    val active: kotlinx.coroutines.flow.StateFlow<Boolean>
+    /** False when the page is not ready (e.g. not drawn yet); nothing changes then. */
+    fun enter(): Boolean
+    fun exit()
+}
+
 /** The Activity supplies the current navigation gate; the PDF surface owns touch detection. */
 fun interface PdfSwipeController { fun allowWhile(condition: () -> Boolean) }
 
@@ -152,6 +163,8 @@ interface ContentsNavigator {
     suspend fun loadContents(): BookContents = contents
     /** Exact native TOC mapping for original-source adapters; titles and ordinals are insufficient. */
     fun entryIdForResource(href: String): String? = null
+    /** TOC entry containing the current reading position, for highlighting only. */
+    fun currentEntryId(): String? = null
     /** True means the engine accepted navigation; actual loading can still report an error. */
     fun goTo(entryId: String): Boolean
 }

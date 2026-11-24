@@ -1,5 +1,7 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -67,13 +69,13 @@ class StudyExportUiTest {
                 onExport = { fileExports++ }, onStudyExport = { selected = it })
         } }
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(
-            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi"))
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi").performClick()
+            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB"))
+        compose.openBookDetails("Ardıç Günlüğü", card = "Ardıç Günlüğü, Deniz Yazar, EPUB")
         compose.onNodeWithText(description).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(action).performScrollTo().assertIsEnabled().performClick()
         assertEquals(book, selected)
         assertEquals(0, fileExports)
-        compose.onNodeWithText("Kitap bilgileri").assertDoesNotExist()
+        compose.onNodeWithText("Oku").assertDoesNotExist()
     }
 
     @Test fun `absent study dependency keeps its action hidden and file export available`() {
@@ -82,8 +84,8 @@ class StudyExportUiTest {
                 {}, {}, {}, "", {}, layout = LibraryLayout.LIST)
         } }
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(
-            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi"))
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi").performClick()
+            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB"))
+        compose.openBookDetails("Ardıç Günlüğü", card = "Ardıç Günlüğü, Deniz Yazar, EPUB")
         compose.onNodeWithText(action).assertDoesNotExist()
         compose.onNodeWithText(description).assertDoesNotExist()
         compose.onNodeWithText("Dosyayı dışa aktar").performScrollTo().assertIsEnabled()
@@ -99,8 +101,8 @@ class StudyExportUiTest {
                 onStudyExport = { error("Busy export must be disabled") })
         } }
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(
-            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi"))
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi").performClick()
+            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB"))
+        compose.openBookDetails("Ardıç Günlüğü", card = "Ardıç Günlüğü, Deniz Yazar, EPUB")
         compose.runOnIdle { studyBusy = true }
         compose.onNodeWithText(action).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("Dosyayı dışa aktar").performScrollTo().assertIsNotEnabled()
@@ -110,10 +112,10 @@ class StudyExportUiTest {
         compose.onNodeWithText("Kapat").performClick()
         compose.onNodeWithText("Çalışma kayıtları dışa aktarılıyor…")
             .performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Okumaya devam et").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Okumaya devam et").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("Kitap ekle").assertDoesNotExist()
         compose.runOnIdle { studyBusy = false }
-        compose.onNodeWithText("Okumaya devam et").assertIsEnabled()
+        compose.onNodeWithContentDescription("Okumaya devam et").assertIsEnabled()
         compose.onNodeWithText("Kitap ekle", useUnmergedTree = true).assertIsEnabled()
     }
 
@@ -131,8 +133,8 @@ class StudyExportUiTest {
             }
         }
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(
-            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi"))
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB, Belirlenmedi").performClick()
+            hasContentDescription("Ardıç Günlüğü, Deniz Yazar, EPUB"))
+        compose.openBookDetails("Ardıç Günlüğü", card = "Ardıç Günlüğü, Deniz Yazar, EPUB")
         compose.onNodeWithText(description).performScrollTo().assertIsDisplayed()
         readable(description)
         compose.onNodeWithText(action).performScrollTo().assertIsDisplayed()

@@ -7,7 +7,7 @@ enum class TapZone { LEFT, MIDDLE, RIGHT }
 
 /** Physical thirds of the current reader viewport, independent of publication reading direction. */
 data class TapZoneSettings(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val left: TapZoneAction = TapZoneAction.PREVIOUS,
     val middle: TapZoneAction = TapZoneAction.MENU,
     val right: TapZoneAction = TapZoneAction.NEXT,

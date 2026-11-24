@@ -15,8 +15,8 @@ android {
         applicationId = "com.yaprak.reader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 184
-        versionName = "0.183.0"
+        versionCode = 190
+        versionName = "0.189.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -48,6 +48,16 @@ android {
         }
     }
     packaging { resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1") }
+    // ML Kit's translate/OCR native libraries make a universal APK ~4x larger than needed.
+    // Phones install the arm64 (or armeabi-v7a) APK; x86_64 is for the emulator.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
 }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 

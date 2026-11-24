@@ -1,5 +1,7 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -127,16 +129,17 @@ class ImportStopUiTest {
                 importProgress = ImportProgress(0, 2, stopRequested = true),
                 onStopRemainingImports = { error("Stop already requested") })
         } }
-        compose.onNodeWithText("Yedekleme").performClick()
-        compose.onNodeWithText("Tam yedek oluştur").performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText("Yedeği geri yükle").performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText("Okumaya devam et").performScrollTo().assertIsNotEnabled()
+        compose.libraryToolNodeWithText("Yedekleme").performClick()
+        compose.libraryToolNodeWithText("Tam yedek oluştur").performScrollTo().assertIsNotEnabled()
+        compose.libraryToolNodeWithText("Yedeği geri yükle").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Kapat").performClick()
+        compose.onNodeWithContentDescription("Okumaya devam et").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText(stopAction).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("Kitap ekle").assertDoesNotExist()
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(
-            hasContentDescription("Ardıç Günlüğü, Deniz, EPUB, Belirlenmedi"))
-        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz, EPUB, Belirlenmedi").performClick()
-        compose.onNodeWithText("Kitap bilgileri").assertDoesNotExist()
+            hasContentDescription("Ardıç Günlüğü, Deniz, EPUB"))
+        compose.onNodeWithContentDescription("Ardıç Günlüğü, Deniz, EPUB").performClick()
+        compose.onNodeWithText("Oku").assertDoesNotExist()
     }
 
     @Test fun `summary separates stopped files selection cap and real result counts`() {

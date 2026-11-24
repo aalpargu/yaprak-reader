@@ -62,7 +62,7 @@ class PdfSelectionAssistantUiTest {
         compose.onNodeWithTag("selected-ai-simplify").performClick(); assertEquals(1, edits); assertEquals(0, sends)
         compose.runOnIdle { old() }; assertEquals(1, edits)
         compose.onNodeWithTag("selected-ai-send").performScrollTo(); readable(compose.activity.getString(R.string.assistant_send))
-        compose.onNodeWithText("Panoya kopyala").assertIsDisplayed(); compose.onNodeWithText("Kapat").assertIsDisplayed()
+        compose.onNodeWithText("Kopyala").assertIsDisplayed(); compose.onNodeWithText("Kapat").assertIsDisplayed()
         capture("$name-send"); assertEquals(0, sends)
         compose.runOnIdle { preview = ready.copy(pdfOcr = true) }
         compose.onNodeWithTag("selected-ai-panel").assertDoesNotExist(); compose.runOnIdle { old() }; assertEquals(1, edits)

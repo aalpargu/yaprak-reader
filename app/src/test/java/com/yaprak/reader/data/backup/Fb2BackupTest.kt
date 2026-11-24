@@ -92,7 +92,7 @@ class Fb2BackupTest {
         try {
             val book = seed(source); assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             val entries = entries(docs.bytes!!); val manifest = JSONObject(entries.getValue("manifest.json").toString(Charsets.UTF_8))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertEquals(setOf("manifest.json", "records.json", "books/" + book.storageName), entries.keys)
             assertArrayEquals(original, entries.getValue("books/" + book.storageName))
             assertEquals(BackupResult.Restored(1), target.backup(docs).restore("content://backup"))
@@ -215,7 +215,14 @@ class Fb2BackupTest {
             RoomLibraryRepository(source.db.books()).add(book); File(source.books, book.storageName).writeBytes(bytes)
             assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             docs.bytes = rewrite(docs.bytes!!) { entries ->
-                val manifest = JSONObject(entries.getValue("manifest.json").toString(Charsets.UTF_8)).put("formatVersion", 21)
+                // A genuine version-21 archive pairs with database 26 and has no page receipts table.
+                val records = JSONObject(entries.getValue("records.json").toString(Charsets.UTF_8))
+                records.getJSONObject("tables").remove("pdf_ink_strokes"); records.getJSONObject("tables").remove("reading_page_receipts")
+                val recordBytes = records.toString().toByteArray()
+                val manifest = JSONObject(entries.getValue("manifest.json").toString(Charsets.UTF_8))
+                    .put("formatVersion", 21).put("databaseVersion", 26)
+                    .put("recordsSize", recordBytes.size).put("recordsSha256", hash(recordBytes))
+                entries["records.json"] = recordBytes
                 entries["manifest.json"] = manifest.toString().toByteArray()
             }
             assertEquals(BackupResult.Restored(1), target.backup(docs).restore("content://backup"))

@@ -1,6 +1,6 @@
-* text=auto
-*.bat text eol=crlf
-*.cmd text eol=crlf
-*.sh text eol=lf
-gradlew text eol=lf
-
+# Preserve PDF xref offsets and the hashes of raw verification artifacts on Windows checkouts.
+*.pdf binary
+*.cbr binary
+*.rar binary
+docs/verification/** -text
+app/src/main/assets/legal/** -text

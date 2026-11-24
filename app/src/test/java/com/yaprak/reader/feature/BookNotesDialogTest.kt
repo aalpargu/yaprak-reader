@@ -6,11 +6,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -30,6 +32,7 @@ import com.yaprak.reader.feature.notes.BookNotesDialog
 import com.yaprak.reader.feature.notes.BookNotesRoute
 import com.yaprak.reader.feature.notes.BookNotesState
 import com.yaprak.reader.feature.notes.BookNoteSort
+import com.yaprak.reader.feature.notes.RecoveredBookNote
 import com.yaprak.reader.ui.theme.YaprakTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
@@ -49,6 +52,65 @@ import org.robolectric.annotation.GraphicsMode
 class BookNotesDialogTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val entry = BookNote("one", "İlk not", 1)
+
+    @Test fun bothProtectedNotesHaveIndependentDiscardActionsAndASecondaryNoteRemainsVisibleWithoutThePrimary() {
+        val first = RecoveredBookNote("Exact note A")
+        val second = RecoveredBookNote("Exact note B")
+        var state by mutableStateOf(BookNotesState(entries = listOf(entry), loading = false, draft = "Current new note",
+            recoveredEdit = first, additionalRecoveredEdit = second))
+        var discarded = 0
+        compose.setContent { YaprakTheme { BookNotesDialog(state, {}, {}, {}, {}, {}, {}, {},
+            onDiscardRecoveredEdit = { expected -> when {
+                state.recoveredEdit === expected -> { discarded++; state = state.copy(recoveredEdit = null) }
+                state.additionalRecoveredEdit === expected -> { discarded++; state = state.copy(additionalRecoveredEdit = null) }
+                else -> Unit
+            } }) } }
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-additional-recovered-discard"))
+        val retired = compose.onNodeWithTag("book-note-additional-recovered-discard").fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
+        compose.runOnIdle { state = state.copy(additionalRecoveredEdit = RecoveredBookNote(second.text)) }
+        compose.waitForIdle(); compose.runOnIdle { retired() }; assertEquals(0, discarded)
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-recovered-discard"))
+        compose.onNodeWithTag("book-note-recovered-discard").performClick(); assertEquals(1, discarded)
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-additional-recovered-text"))
+        compose.onNodeWithTag("book-note-additional-recovered-text").assertIsDisplayed().assertTextEquals("Exact note B")
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-edit-${entry.id}"))
+        compose.onNodeWithTag("book-note-edit-${entry.id}").assertIsNotEnabled()
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-additional-recovered-discard"))
+        compose.onNodeWithTag("book-note-additional-recovered-discard").performClick(); assertEquals(2, discarded)
+        assertEquals("Current new note", state.draft); assertEquals(listOf(entry), state.entries)
+    }
+
+    @Test fun separateRecoveredNoteRemainsVisibleAfterNewDraftTypingAndRequiresItsOwnCurrentDiscardAction() {
+        val originalRecovery = RecoveredBookNote("  Separately protected note  ")
+        var state by mutableStateOf(BookNotesState(entries = listOf(entry), loading = false,
+            draft = "New note", recoveredEdit = originalRecovery, message = "Transient status"))
+        var discarded = 0
+        compose.setContent { YaprakTheme { BookNotesDialog(state,
+            { state = state.copy(draft = it, message = null) }, {}, {}, {}, {}, {}, {},
+            onDiscardRecoveredEdit = { expected -> if (state.recoveredEdit === expected) {
+                discarded++; state = state.copy(recoveredEdit = null)
+            } }) } }
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-recovered-discard"))
+        val retired = compose.onNodeWithTag("book-note-recovered-discard").fetchSemanticsNode()
+            .config[SemanticsActions.OnClick].action!!
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-draft"))
+        compose.onNodeWithTag("book-note-draft").performTextReplacement("New note typed")
+        assertNull(state.message)
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-recovered-text"))
+        compose.onNodeWithTag("book-note-recovered-text").assertIsDisplayed().assertTextEquals(originalRecovery.text)
+        val replacement = RecoveredBookNote(originalRecovery.text)
+        compose.runOnIdle { state = state.copy(recoveredEdit = replacement) }
+        compose.waitForIdle(); compose.runOnIdle { retired() }
+        assertEquals(0, discarded); assertEquals(replacement, state.recoveredEdit)
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-edit-${entry.id}"))
+        compose.onNodeWithTag("book-note-edit-${entry.id}").assertIsNotEnabled()
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-recovered-discard"))
+        compose.onNodeWithTag("book-note-recovered-discard").performClick()
+        assertEquals(1, discarded); assertNull(state.recoveredEdit)
+        assertEquals("New note typed", state.draft); assertEquals(listOf(entry), state.entries)
+        compose.onNodeWithTag("book-notes-list").performScrollToNode(hasTestTag("book-note-edit-${entry.id}"))
+        compose.onNodeWithTag("book-note-edit-${entry.id}").assertIsEnabled()
+    }
 
     @Test fun `dialog explains whole book scope and needs a valid manual draft`() {
         var state by mutableStateOf(BookNotesState(loading = false))
@@ -452,7 +514,7 @@ class BookNotesDialogTest {
         compose.setContent { YaprakTheme { if (open) BookNotesRoute(book, repository,
             onDismiss = { open = false },
             capturePdfPage = { captureCalls++; page },
-            onGoToPdfPage = { index -> requestedPage = index; navigationAccepted },
+            onGoToPdfPage = { index, complete -> requestedPage = index; navigationAccepted && complete() },
         ) } }
         compose.onNodeWithTag("book-note-draft").performTextReplacement("Bu sayfanın notu")
         compose.onNodeWithTag("book-note-save-at-page").performScrollTo().performClick()
@@ -506,7 +568,7 @@ class BookNotesDialogTest {
         }
         var book by mutableStateOf(pdf)
         compose.setContent { YaprakTheme { BookNotesRoute(book, repository, onDismiss = {},
-            capturePdfPage = { 2 }, onGoToPdfPage = { true }) } }
+            capturePdfPage = { 2 }, onGoToPdfPage = { _, complete -> complete() }) } }
         compose.onNodeWithTag("book-note-draft").performTextReplacement("Genel not")
         compose.onNodeWithText("Notu kaydet").performScrollTo().performClick()
         compose.waitForIdle()

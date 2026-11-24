@@ -34,8 +34,8 @@
     <string name="assistant_keywords">Kaynak aramak için anahtar kelimeler</string>
     <string name="assistant_prepare">Kaynakları cihazda hazırla</string>
     <string name="assistant_no_sources">Bu kelimelerle kaynak bulunamadı. Kitabın soruya cevabı olmadığı anlamına gelmez; kelimeleri değiştir.</string>
-    <string name="assistant_source_count">Gönderilecek kaynak: %1$d · toplam eşleşme: %2$d. Yalnız aşağıdaki parçalar kullanılır.</string>
-    <string name="assistant_question">Bu kaynaklara soracağın soru · en fazla 1000 karakter</string>
+    <string name="assistant_source_count">Kitapta ilgili %1$d bölüm (toplam %2$d eşleşme). AI cevabı istenirse yalnız bunlar kullanılır.</string>
+    <string name="assistant_question">Sorun · en fazla 1000 karakter</string>
     <string name="assistant_connection">AI sunucusu bağlantısı</string>
     <string name="assistant_connection_help">Bu özellik bir Yaprak AI sunucusu gerektirir. Sunucunun HTTPS adresini ve sana verdiği erişim kodunu gir. OpenAI API anahtarı telefona girilmez. Bağlantı ve kod yalnız bu ekran oturumunda tutulur; uygulama kapanınca yeniden gerekir.</string>
     <string name="assistant_endpoint">Sunucu adresi · https://…/v1/book-answer</string>

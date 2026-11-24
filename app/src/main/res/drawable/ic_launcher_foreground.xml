@@ -1,0 +1,4 @@
+﻿<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Open book, centered inside the adaptive-icon safe zone. -->
+    <path android:fillColor="#F6EDDB" android:pathData="M30,32 Q43,28 53,37 L53,80 Q43,71 30,74 Z M55,37 Q65,28 78,32 L78,74 Q65,71 55,80 Z" />
+</vector>

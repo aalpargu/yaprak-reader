@@ -10,6 +10,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
@@ -41,6 +43,7 @@ internal class PdfReaderFragment(
     private val modePreferred: MutableStateFlow<com.yaprak.reader.domain.settings.PdfNavigationMode> =
         MutableStateFlow(if (scrollingPreferred.value) com.yaprak.reader.domain.settings.PdfNavigationMode.VERTICAL_SCROLL
             else com.yaprak.reader.domain.settings.PdfNavigationMode.PAGED),
+    inkRepository: com.yaprak.reader.domain.pdfink.PdfInkRepository? = null,
 ) : Fragment() {
     private val status = PdfRenderStatus(document.pageCount, initialPage, initialAnchorY).apply {
         setScrolling(scrollingPreferred.value, modePreferred.value == com.yaprak.reader.domain.settings.PdfNavigationMode.HORIZONTAL_SCROLL)
@@ -63,6 +66,11 @@ internal class PdfReaderFragment(
         bookmarkPage != null && drawnPage.value == status.requestedPage.value && page in status.requestedPages()
     }
     val textSelection: TextSelectionSource? get() = selection.takeIf { document.textSupported }
+    /** Highlighter pen; entering needs a resumed, drawn page of this still-current surface. */
+    val ink = if (book != null && inkRepository != null) com.yaprak.reader.formats.pdf.ink.PdfInkController(book, inkRepository,
+        com.yaprak.reader.formats.pdf.ink.pdfInkTextLookup(document),
+        canEnter = { isResumed && current() && document.isOpen && drawnPage.value != null }) else null
+    private val inkAtTop = MutableStateFlow(false)
     private var selectionPreparation: Job? = null
     val scrolling = scrollingPreferred
 
@@ -127,12 +135,23 @@ internal class PdfReaderFragment(
     fun applyCrop(crop: PdfPageCrop) { clearSelection(); status.clearDraw(); cropRequest.update { PdfCropRequest(crop, it.revision + 1) } }
 
     override fun onPause() { status.clearDraw(); clearSelection(); annotationPainter?.stop(); super.onPause() }
-    override fun onDestroyView() { status.clearDraw(); clearSelection(); annotationPainter?.stop(); super.onDestroyView() }
+    override fun onDestroyView() { status.clearDraw(); clearSelection(); annotationPainter?.stop(); ink?.detach(); super.onDestroyView() }
 
     override fun onResume() { super.onResume(); status.clearDraw(); view?.invalidate() }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        ink?.let { pen ->
+            pen.attach(viewLifecycleOwner.lifecycleScope)
+            // Back leaves the pen first; reading gestures and the selection come back after it.
+            val back = object : androidx.activity.OnBackPressedCallback(false) {
+                override fun handleOnBackPressed() { pen.exit() }
+            }
+            requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
+            viewLifecycleOwner.lifecycleScope.launch {
+                pen.active.collect { on -> back.isEnabled = on; if (on) clearSelection() }
+            }
+        }
         val painter = annotationPainter ?: return
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -178,7 +197,11 @@ internal class PdfReaderFragment(
                     val mode by modePreferred.collectAsState()
                     val annotationPaint = annotationPainter?.state?.collectAsState()?.value
                     val renderPage = remember(document) { document::render }
+                    val inkOn = ink?.active?.collectAsState()?.value == true
+                    val toolbarAtTop by inkAtTop.collectAsState()
                     YaprakTheme {
+                      androidx.compose.runtime.CompositionLocalProvider(com.yaprak.reader.formats.pdf.ink.LocalPdfInk provides ink) {
+                      androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                         PdfPages(renderPage, page, document.pageCount, doublePreferred, status, onTap,
                             nightMode = night, onSwipePage = { delta ->
                                 if (!isResumed || !swipeAllowed() || (delta != -1 && delta != 1) ||
@@ -191,7 +214,14 @@ internal class PdfReaderFragment(
                             drawProofHost = proofHost, scrolling = scrollPreferred, loadPageDimensions = document::pageDimensions,
                             scrollAllowed = { isResumed && current() && swipeAllowed() && !selection.active },
                             onScrolledPrimary = ::clearSelection,
-                            horizontalScrolling = mode == com.yaprak.reader.domain.settings.PdfNavigationMode.HORIZONTAL_SCROLL)
+                            horizontalScrolling = mode == com.yaprak.reader.domain.settings.PdfNavigationMode.HORIZONTAL_SCROLL,
+                            selectionController = selection)
+                        if (ink != null && inkOn) com.yaprak.reader.formats.pdf.ink.PdfInkToolbar(ink, toolbarAtTop,
+                            { inkAtTop.value = !inkAtTop.value },
+                            androidx.compose.ui.Modifier.align(if (toolbarAtTop) androidx.compose.ui.Alignment.TopCenter
+                                else androidx.compose.ui.Alignment.BottomCenter).systemBarsPadding())
+                      }
+                      }
                     }
                 }
             }, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))

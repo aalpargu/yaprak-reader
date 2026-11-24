@@ -17,15 +17,16 @@ internal fun LibraryWordsScreen(
     state: LibraryWordsState, onSearch: (String) -> Unit, onReload: (Long) -> Unit,
     onPractice: (Long, String) -> Unit, onOpen: (Long, LibraryWord) -> Unit, onBack: () -> Unit, onReview: () -> Unit = {},
 ) {
-    Scaffold(bottomBar = {
-        Surface { TextButton(onBack, Modifier.fillMaxWidth().navigationBarsPadding()) {
-            Text(stringResource(R.string.library_words_back), Modifier.fillMaxWidth())
-        } }
+    var helpOpen by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    Scaffold(topBar = {
+        com.yaprak.reader.ui.theme.YaprakTopBar(stringResource(R.string.library_words_title),
+            stringResource(R.string.library_words_back), onBack, "library-words-back", onInfo = { helpOpen = !helpOpen })
     }) { insets ->
         LazyColumn(Modifier.fillMaxSize().padding(insets).testTag("library-words-list"),
-            contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item("title") { Text(stringResource(R.string.library_words_title), style = MaterialTheme.typography.headlineMedium) }
-            item("help") { Text(stringResource(R.string.library_words_help), style = MaterialTheme.typography.bodySmall) }
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (helpOpen) item("help") { Text(stringResource(R.string.library_words_help), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
             item("review") { WordAction(stringResource(R.string.review_title), "word-review", state.revision, state.actionsEnabled) { onReview() } }
             item("query") {

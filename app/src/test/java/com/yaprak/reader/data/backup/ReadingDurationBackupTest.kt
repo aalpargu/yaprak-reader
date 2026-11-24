@@ -48,7 +48,7 @@ class ReadingDurationBackupTest {
             val expected = seed(source)
             assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             val archive = entries(requireNotNull(docs.bytes)); val manifest = json(archive.getValue("manifest.json"))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertEquals(1, json(archive.getValue("records.json")).getJSONObject("tables").getJSONArray("reading_duration_receipts").length())
             assertEquals(BackupResult.Restored(1), target.backup(docs).restore("content://backup"))
             target.db.close(); target = target.copy(db = open(target.databaseName))

@@ -160,8 +160,12 @@ internal class PdfPageDrawWitness(private val changed: () -> Unit) {
     }
 
     fun painted(image: Bitmap, currentTicket: Long?, currentGeometry: PdfDrawGeometry) {
-        if (bitmap === image && !image.isRecycled && currentTicket != null && ticket == currentTicket && geometry == currentGeometry)
+        if (!painted && bitmap === image && !image.isRecycled && currentTicket != null && ticket == currentTicket && geometry == currentGeometry) {
             painted = true
+            // A child's animated RenderNode can finish without replaying the native parent.
+            // Ask that parent to witness the settled frame before granting a reading anchor.
+            changed()
+        }
     }
 
     fun visibleWindowBounds(out: RectF): Boolean {

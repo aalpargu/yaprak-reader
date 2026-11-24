@@ -107,10 +107,14 @@ class BookNoteCopyTest {
         compose.onNodeWithTag("book-note-copy-one").assertDoesNotExist()
         compose.runOnIdle { callback = { copied += it } }
         copyNode(note.id).assertIsEnabled()
-        listOf(state.copy(busy = true), state.copy(pendingEdit = note, editDraft = note.text),
-            state.copy(pendingDelete = note)).forEach { gated ->
+        val ready = state
+        compose.runOnIdle { state = ready.copy(busy = true) }
+        compose.onNodeWithTag("book-note-copy-one").assertIsNotEnabled()
+        assertTrue(copied.isEmpty())
+        listOf(ready.copy(pendingEdit = note, editDraft = note.text),
+            ready.copy(pendingDelete = note)).forEach { gated ->
             compose.runOnIdle { state = gated }
-            compose.onNodeWithTag("book-note-copy-one").assertIsNotEnabled()
+            compose.onNodeWithTag("book-note-copy-one").assertDoesNotExist()
             assertTrue(copied.isEmpty())
         }
         listOf(state.copy(pendingDelete = null, loading = true),
@@ -128,7 +132,7 @@ class BookNoteCopyTest {
         val repository = Repository(listOf(note))
         val cancellation = CancellationException("Cancelled")
         compose.setContent { YaprakTheme { BookNotesRoute(book, repository, {},
-            onGoToPdfPage = { throw cancellation }, onCopy = { throw cancellation }) } }
+            onGoToPdfPage = { _, _ -> throw cancellation }, onCopy = { throw cancellation }) } }
         val copyAction = copyNode(note.id).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         val navigation = "1. not: PDF sayfası 1, sayfaya git"
         compose.onNodeWithTag("book-notes-list").performScrollToNode(hasContentDescription(navigation))

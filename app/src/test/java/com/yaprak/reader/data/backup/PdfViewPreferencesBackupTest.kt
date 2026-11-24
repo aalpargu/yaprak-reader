@@ -86,8 +86,8 @@ class PdfViewPreferencesBackupTest {
             assertEquals(BackupResult.Created(3), source.backup(docs).create("content://backup"))
             val archive = entries(requireNotNull(docs.bytes))
             val manifest = json(archive.getValue("manifest.json"))
-            assertEquals(26, manifest.getInt("formatVersion"))
-            assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion"))
+            assertEquals(28, manifest.getInt("databaseVersion"))
             val records = json(archive.getValue("records.json"))
             assertEquals(settingsKeys, records.getJSONObject("settings").keys().asSequence().toSet())
             assertEquals(2, records.getJSONObject("tables").getJSONArray(preferenceTable).length())
@@ -461,7 +461,10 @@ class PdfViewPreferencesBackupTest {
             RoomBookPdfViewPreferencesRepository(source.db).saveNavigation(pdfId, hash(pdfBytes), PdfNavigationMode.HORIZONTAL_SCROLL)
             assertEquals(BackupResult.Created(2), source.backup(docs).create("content://backup"))
             val current = requireNotNull(docs.bytes)
-            val downgraded = rewrite(current) { manifest, _ -> manifest.put("formatVersion", 23) }
+            val downgraded = rewrite(current) { manifest, records ->
+                manifest.put("formatVersion", 23).put("databaseVersion", 26)
+                records.getJSONObject("tables").remove("pdf_ink_strokes"); records.getJSONObject("tables").remove("reading_page_receipts")
+            }
             docs.bytes = downgraded
             assertEquals(BackupResult.Failed(BackupFailure.INVALID_ARCHIVE), target.backup(docs).restore("content://backup"))
             assertTrue(target.db.books().observeAll().first().isEmpty()); assertEquals(previousSettings, target.settings.settings.first())
@@ -491,7 +494,7 @@ class PdfViewPreferencesBackupTest {
             assertEquals(BackupResult.Created(3), source.backup(docs).create("content://backup"))
             val archive = entries(requireNotNull(docs.bytes))
             val manifest = json(archive.getValue("manifest.json"))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             val rows = json(archive.getValue("records.json")).getJSONObject("tables").getJSONArray("book_pdf_navigation_preferences")
             assertEquals(2, rows.length())
             for (i in 0 until rows.length()) assertEquals(setOf("bookId", "contentSha256", "mode"), rows.getJSONObject(i).keys().asSequence().toSet())
@@ -516,7 +519,7 @@ class PdfViewPreferencesBackupTest {
             source.backup(docs).create("content://backup"); val original = requireNotNull(docs.bytes)
             val oldArchive = rewrite(original) { manifest, records ->
                 manifest.put("formatVersion", 20).put("databaseVersion", 25)
-                records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
+                records.getJSONObject("tables").remove("pdf_ink_strokes"); records.getJSONObject("tables").remove("reading_page_receipts"); records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
             }
             val target = fixture("navigation-old-target")
             try {
@@ -641,7 +644,7 @@ class PdfViewPreferencesBackupTest {
                 docs.bytes = rewrite(archive) { manifest, records ->
                     if (version == 20) {
                         manifest.put("formatVersion", 20).put("databaseVersion", 25)
-                        records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
+                        records.getJSONObject("tables").remove("pdf_ink_strokes"); records.getJSONObject("tables").remove("reading_page_receipts"); records.getJSONObject("tables").remove("book_pdf_navigation_preferences")
                     }
                     records.getJSONObject("tables").getJSONArray("observed_text").getJSONObject(0)
                         .put("bookId", pdfId).put("contentSha256", hash(pdfBytes))

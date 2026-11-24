@@ -1,5 +1,8 @@
 package com.yaprak.reader.feature
 
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -53,9 +56,9 @@ class NotionStudyExportUiTest {
                 layout = LibraryLayout.LIST, onStudyExportFormat = { selected, format -> selections += selected to format })
         } }
         fun open(title: String = book.title) {
-            val description = "$title, Deniz, EPUB, Belirlenmedi"
+            val description = "$title, Deniz, EPUB"
             compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasContentDescription(description))
-            compose.onNodeWithContentDescription(description).performClick()
+            compose.onNodeWithContentDescription("$title ayrıntıları").performClick()
             compose.onNodeWithText("Çalışma kayıtlarını dışa aktar").performScrollTo().performClick()
         }
         open(); assertTrue(selections.isEmpty())

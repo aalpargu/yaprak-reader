@@ -79,7 +79,7 @@ class BookTextAlignmentBackupTest {
     private fun rewrite(bytes: ByteArray, version: Int = 22, edit: (JSONObject) -> Unit = {}): ByteArray {
         val entries = entries(bytes)
         val records = JSONObject(entries.getValue("records.json").toString(Charsets.UTF_8))
-        if (version <= 20) records.getJSONObject("tables").remove("book_pdf_navigation_preferences"); edit(records)
+        if (version <= 27) records.getJSONObject("tables").remove("pdf_ink_strokes"); if (version <= 26) records.getJSONObject("tables").remove("reading_page_receipts"); if (version <= 20) records.getJSONObject("tables").remove("book_pdf_navigation_preferences"); edit(records)
         if (version <= 19) records.getJSONObject("tables").remove("book_cbz_view_preferences")
         if (version <= 18) records.getJSONObject("tables").remove("book_epub_reading_mode_overrides")
         val encoded = records.toString().toByteArray()
@@ -97,7 +97,7 @@ class BookTextAlignmentBackupTest {
         try {
             seed(source); assertEquals(BackupResult.Created(1), source.backup(docs).create("content://backup"))
             val manifest = JSONObject(entries(docs.bytes!!).getValue("manifest.json").toString(Charsets.UTF_8))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             val row = JSONObject(entries(docs.bytes!!).getValue("records.json").toString(Charsets.UTF_8)).getJSONObject("tables").getJSONArray(table).getJSONObject(0)
             assertEquals(setOf("bookId", "contentSha256", "alignment"), row.keys().asSequence().toSet())
             assertEquals("PUBLISHER", row.getString("alignment"))

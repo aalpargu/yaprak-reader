@@ -1,5 +1,6 @@
 package com.yaprak.reader.reader
 
+import com.yaprak.reader.readerMethod
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.assertIsNotEnabled
 import android.graphics.Bitmap
@@ -80,17 +81,18 @@ class PdfContentsDeviceTest {
                     compose.onAllNodesWithText("Third named").fetchSemanticsNodes().isNotEmpty()
                 }
                 compose.onNodeWithText("Third named").performScrollTo().performClick()
-                await("named outline destination painted") { frame(scenario)?.pageIndex == 2 }
+                val namedPoint = PdfResumePosition(2, 250_000)
+                await("named outline destination point painted") { same(namedPoint, frame(scenario)) }
                 await("named outline destination persisted") {
-                    PdfPosition.decodeResumeOrNull(container.reading.resume(id, hash), 3)?.pageIndex == 2
+                    same(namedPoint, PdfPosition.decodeResumeOrNull(container.reading.resume(id, hash), 3))
                 }
                 compose.onNodeWithText("Kapat").assertDoesNotExist()
                 InstrumentationRegistry.getInstrumentation().uiAutomation.waitForIdle(500, 5_000)
                 compose.onNodeWithText("Gizle").performClick()
-                await("named destination remains painted after hiding reader controls") { frame(scenario)?.pageIndex == 2 }
+                await("named destination point remains painted after hiding reader controls") { same(namedPoint, frame(scenario)) }
                 capture("outline-destination")
                 scenario.recreate()
-                await("fresh Activity resumes actual outline page") { frame(scenario)?.pageIndex == 2 }
+                await("fresh Activity resumes actual outline point") { same(namedPoint, frame(scenario)) }
                 // A fragment can retire its source while the Activity is still resumed. That
                 // cancellation must release the production modal gate, not leave invisible input blocking.
                 var retiredSource: Any? = null
@@ -101,7 +103,7 @@ class PdfContentsDeviceTest {
                         .setMaxLifecycle(pdf, androidx.lifecycle.Lifecycle.State.STARTED).commitNow()
                     assertFalse(pdf.isResumed)
                     assertTrue(activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
-                    retiredSource = activity.javaClass.getDeclaredMethod("getContentsNavigator").apply { isAccessible = true }
+                    retiredSource = activity.javaClass.readerMethod("getContentsNavigator").apply { isAccessible = true }
                         .invoke(activity)
                     priorGeneration = checkNotNull(retiredSource).javaClass.getDeclaredField("generation")
                         .apply { isAccessible = true }.getLong(retiredSource)
@@ -112,7 +114,7 @@ class PdfContentsDeviceTest {
                         var open = true
                         var attempted = false
                         scenario.onActivity { activity ->
-                            open = activity.javaClass.getDeclaredMethod("getContentsOpen").apply { isAccessible = true }
+                            open = activity.javaClass.readerMethod("getContentsOpen").apply { isAccessible = true }
                                 .invoke(activity) as Boolean
                             attempted = checkNotNull(retiredSource).javaClass.getDeclaredField("generation")
                                 .apply { isAccessible = true }.getLong(retiredSource) > priorGeneration
@@ -157,6 +159,10 @@ class PdfContentsDeviceTest {
     private fun openContents() {
         compose.onNodeWithText("İçindekiler").performScrollTo().performClick()
     }
+
+    private fun same(expected: PdfResumePosition, actual: PdfResumePosition?) =
+        actual?.pageIndex == expected.pageIndex && actual.anchorY != null && expected.anchorY != null &&
+            abs(actual.anchorY - expected.anchorY) <= 4500
 
     private fun capture(name: String) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

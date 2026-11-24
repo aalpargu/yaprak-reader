@@ -20,6 +20,15 @@ import org.robolectric.annotation.Config
 class TapZoneSettingsPersistenceTest {
     @get:Rule val folder = TemporaryFolder()
 
+    @Test fun explicitlyDisabledMappingSurvivesTheNewEnabledDefault() = runBlocking {
+        val file = File(folder.root, "disabled.preferences_pb")
+        withStore(file) { repository, _ ->
+            assertTrue(repository.tapZones.first().enabled)
+            repository.saveTapZones(TapZoneSettings(enabled = false))
+        }
+        withStore(file) { repository, _ -> assertFalse(repository.tapZones.first().enabled) }
+    }
+
     @Test fun legacyReadDefaultsOffWithoutRewritingAndOwnedWritesSurviveReopen() = runBlocking {
         val file = File(folder.root, "reader.preferences_pb")
         val appearance = EpubSettings(150, ReadingFont.SERIF, 180, 130, ReadingTheme.AMOLED,

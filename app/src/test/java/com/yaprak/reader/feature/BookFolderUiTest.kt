@@ -57,7 +57,7 @@ class BookFolderUiTest {
         readable(text(R.string.book_folder_selected, "Ders kitapları 🌿"))
         val scan = action("book-folder-scan")
         readable(text(R.string.book_folder_scan))
-        compose.onNodeWithTag("book-folder-scan").performClick()
+        compose.libraryToolNodeWithTag("book-folder-scan").performClick()
         val forget = action("book-folder-forget")
         readable(text(R.string.book_folder_forget))
         compose.onNodeWithText(text(R.string.book_folder_help)).performScrollTo().assertIsDisplayed()
@@ -77,7 +77,7 @@ class BookFolderUiTest {
             BookFolderPanel(state, true, { fail("No scan") }, { fail("No forget") }, { retries++ }, { cancels++ })
         } } }
         compose.onNodeWithText(text(R.string.book_folder_load_failed)).assertIsDisplayed()
-        compose.onNodeWithTag("book-folder-scan").assertDoesNotExist()
+        compose.libraryToolNodeWithTag("book-folder-scan").assertDoesNotExist()
         compose.onNodeWithText(text(R.string.book_folder_retry)).performClick()
         assertEquals(1, retries)
         compose.runOnIdle { state = ready.copy(resolving = true) }
@@ -156,7 +156,7 @@ class BookFolderUiTest {
         try {
             compose.setContent { YaprakTheme { LibraryRoute(model) } }
             compose.waitUntil { model.bookFolderState.value.ready }
-            compose.onNodeWithTag("book-folder-scan").performScrollTo().assertIsEnabled().performClick()
+            compose.libraryToolNodeWithTag("book-folder-scan").performScrollTo().assertIsEnabled().performClick()
             compose.waitUntil { model.bookFolderState.value.resolving }
             compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
             release.complete(Unit); compose.waitForIdle()
@@ -164,7 +164,7 @@ class BookFolderUiTest {
             compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
             compose.waitForIdle()
             assertTrue(scans.isEmpty())
-            compose.onNodeWithTag("book-folder-scan").performScrollTo().assertIsEnabled().performClick()
+            compose.libraryToolNodeWithTag("book-folder-scan").performScrollTo().assertIsEnabled().performClick()
             compose.waitUntil { model.discoveryState.value is DiscoveryState.Preview }
             assertEquals(listOf(uri), scans)
             assertEquals(uri, (model.discoveryState.value as DiscoveryState.Preview).treeUri)

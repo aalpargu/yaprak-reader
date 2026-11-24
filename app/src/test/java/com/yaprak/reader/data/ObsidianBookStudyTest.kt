@@ -67,7 +67,7 @@ class ObsidianBookStudyTest {
 
     @Test fun wordOnlyBooksUseActualTypedPairsAcrossSupportedFormats() = runBlocking {
         for (format in BookFormat.entries) {
-            val count = if (format in setOf(BookFormat.PDF, BookFormat.CBZ)) 10 else null
+            val count = if (format in setOf(BookFormat.PDF, BookFormat.CBZ, BookFormat.CBR)) 10 else null
             val records = StudyRecordsSnapshot(StudyExportBook("Kitap", null, format, count),
                 words = listOf(StudyWordRecord("dependency injection", "bağımlılık enjeksiyonu")))
             val body = entries(renderObsidianBookStudyZip(format.name, hash, records)).values.single { "record_count: 1" in it }

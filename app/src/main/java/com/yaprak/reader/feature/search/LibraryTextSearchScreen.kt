@@ -48,19 +48,16 @@ internal fun LibraryTextSearchScreen(
     DisposableEffect(lease) { lease.active = true; onDispose { lease.active = false } }
     fun mayAct() = lease.active && live.active
     var indexTab by rememberSaveable { mutableStateOf(false) }
-    Scaffold(bottomBar = {
-        Box(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).padding(horizontal = 16.dp),
-            contentAlignment = Alignment.Center) {
-            TextButton(onClick = { if (mayAct()) onBack() }, modifier = Modifier.fillMaxWidth().testTag("library-text-back")) {
-                Text(stringResource(R.string.library_text_back), Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            }
-        }
+    var helpOpen by rememberSaveable { mutableStateOf(false) }
+    Scaffold(topBar = {
+        com.yaprak.reader.ui.theme.YaprakTopBar(stringResource(R.string.library_text_title), stringResource(R.string.library_text_back),
+            { if (mayAct()) onBack() }, "library-text-back", onInfo = { helpOpen = !helpOpen })
     }) { insets ->
         Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
             LazyColumn(Modifier.widthIn(max = 900.dp).fillMaxSize().testTag("library-text-list"),
                 contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                item("title") { Text(stringResource(R.string.library_text_title), style = MaterialTheme.typography.headlineMedium) }
-                item("help") { Text(stringResource(R.string.library_text_help), style = MaterialTheme.typography.bodySmall) }
+                if (helpOpen) item("help") { Text(stringResource(R.string.library_text_help), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 item("tabs") {
                     Column {
                         TextButton(onClick = { if (mayAct()) indexTab = false }, enabled = state.active,

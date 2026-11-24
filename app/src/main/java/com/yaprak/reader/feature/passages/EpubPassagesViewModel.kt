@@ -7,6 +7,8 @@ import com.yaprak.reader.domain.passages.EpubPassageRepository
 import com.yaprak.reader.domain.passages.EpubHighlightColor
 import java.util.UUID
 import com.yaprak.reader.reader.EpubSourceAnchor
+import com.yaprak.reader.feature.reader.ReaderDraftSnapshot
+import com.yaprak.reader.feature.reader.readerDraftFingerprint
 import com.yaprak.reader.reader.SourceTextAnchor
 import com.yaprak.reader.reader.SourceRangeAnchor
 import com.yaprak.reader.reader.SourceRangeAnchors
@@ -20,6 +22,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
 internal data class PassageDraft(val text: String, val anchor: EpubSourceAnchor)
+internal data class RecoveredPassageEdit(val note: String, val color: String, val id: String = UUID.randomUUID().toString())
 
 internal data class EpubPassagesState(
     val entries: List<EpubPassage> = emptyList(),
@@ -35,6 +38,10 @@ internal data class EpubPassagesState(
     val pendingEdit: EpubPassage? = null,
     val editColor: EpubHighlightColor? = null,
     val editNote: String = "",
+    val recoveredNote: String? = null,
+    val recoveredColor: String = "",
+    val additionalRecoveredEdit: RecoveredPassageEdit? = null,
+    val recoveryRevision: Long = 0,
     val sessionId: String = UUID.randomUUID().toString(),
     val editRevision: Long = 0,
 ) {
@@ -61,9 +68,72 @@ internal class EpubPassagesViewModel(
     val state = mutable.asStateFlow()
     private var observation: Job? = null
     private var discardAfterBusy = false
+    private var detachedExistingEdit = false
+    private var retainedEditSession: String? = null
     private var loadGeneration = 0L
 
     init { reload() }
+
+    /** Only user input and opaque expected-row identity are saved, never an EPUB source anchor. */
+    fun snapshot(listIndex: Int, listOffset: Int): ReaderDraftSnapshot {
+        val current = state.value
+        val expected = current.pendingEdit
+        return ReaderDraftSnapshot(query = current.query, sort = current.sort.name,
+            secondaryDraft = current.recoveredNote.orEmpty(),
+            recoveredDraft = current.recoveredColor,
+            editId = expected?.id, expectedFingerprint = expected?.let(::passageDraftFingerprint),
+            editDraft = if (expected != null) current.editNote else current.additionalRecoveredEdit?.note.orEmpty(),
+            secondaryEditDraft = if (expected != null) current.editColor?.name.orEmpty() else current.additionalRecoveredEdit?.color.orEmpty(),
+            listIndex = listIndex, listOffset = listOffset)
+    }
+
+    /** Resolve against freshly observed complete records before reattaching a user draft. */
+    fun restorePresentation(snapshot: ReaderDraftSnapshot): Boolean {
+        val current = state.value
+        if (current.loading || current.loadFailed || current.busy) return false
+        val sort = EpubPassageSort.entries.firstOrNull { it.name == snapshot.sort } ?: return true
+        // An admitted retained editor/write wins over an older Android Bundle.
+        if (current.sessionId == retainedEditSession || current.pendingEdit != null || current.pendingDelete != null ||
+            current.recoveredNote != null || current.additionalRecoveredEdit != null) return true
+        val expected = snapshot.editId?.let { id -> current.entries.singleOrNull { it.id == id } }
+        val color = snapshot.secondaryEditDraft.takeUnless(String::isEmpty)?.let { name ->
+            EpubHighlightColor.entries.firstOrNull { it.name == name }
+        }
+        val editable = expected != null && passageDraftFingerprint(expected) == snapshot.expectedFingerprint &&
+            (snapshot.secondaryEditDraft.isEmpty() || color != null)
+        val hasRecovery = snapshot.secondaryDraft.isNotEmpty() || snapshot.recoveredDraft.isNotEmpty()
+        val hasEditText = snapshot.editDraft.isNotEmpty() || snapshot.secondaryEditDraft.isNotEmpty()
+        val stale = snapshot.editId != null && !editable
+        val orphan = snapshot.editId == null && hasEditText
+        mutable.update { it.copy(query = limitEpubPassageSearchQuery(snapshot.query), sort = sort,
+            pendingEdit = expected.takeIf { editable }, editNote = if (editable) snapshot.editDraft else "",
+            editColor = if (editable) color else null,
+            recoveredNote = when {
+                hasRecovery -> snapshot.secondaryDraft
+                stale && hasEditText -> snapshot.editDraft
+                else -> null
+            },
+            recoveredColor = if (hasRecovery) snapshot.recoveredDraft else if (stale) snapshot.secondaryEditDraft else "",
+            additionalRecoveredEdit = if ((orphan || (stale && hasRecovery)) && hasEditText)
+                RecoveredPassageEdit(snapshot.editDraft, snapshot.secondaryEditDraft) else null,
+            recoveryRevision = it.recoveryRevision + 1,
+            message = if (snapshot.editId != null && !editable) "Kayıt değişti. Kaydedilmemiş not taslağın ayrıca korunuyor." else null,
+            editRevision = it.editRevision + 1) }
+        return true
+    }
+
+    fun discardRecoveredNote(expected: String, expectedRevision: Long) {
+        mutable.update { current ->
+            if (!current.busy && current.recoveredNote == expected && current.recoveryRevision == expectedRevision)
+                current.copy(recoveredNote = null, recoveredColor = "", recoveryRevision = current.recoveryRevision + 1) else current
+        }
+    }
+
+    fun discardAdditionalRecoveredEdit(expected: RecoveredPassageEdit) {
+        mutable.update { current ->
+            if (!current.busy && current.additionalRecoveredEdit === expected) current.copy(additionalRecoveredEdit = null) else current
+        }
+    }
 
     fun search(query: String) { if (canFilter()) mutable.update { it.copy(query = limitEpubPassageSearchQuery(query)) } }
 
@@ -110,12 +180,28 @@ internal class EpubPassagesViewModel(
     }
 
     fun startSession(sessionId: String) {
-        clearSession()
-        mutable.update { it.copy(sessionId = sessionId) }
+        // A replacement route gets a fresh callback owner, while an admitted existing edit
+        // and its in-flight result remain model-owned until success or an explicit cancel.
+        val retained = detachedExistingEdit || (state.value.busy && state.value.pendingEdit != null)
+        if (!retained) clearSession()
+        retainedEditSession = sessionId.takeIf { retained }
+        detachedExistingEdit = false
+        mutable.update { it.copy(sessionId = sessionId, editRevision = it.editRevision + 1) }
+    }
+
+    fun releaseSession(expectedSession: String) {
+        val current = state.value
+        if (current.sessionId != expectedSession) return
+        if (current.pendingEdit != null && (current.busy || current.recoveredNote != null || current.additionalRecoveredEdit != null)) {
+            detachedExistingEdit = true
+            mutable.update { it.copy(sessionId = UUID.randomUUID().toString(), editRevision = it.editRevision + 1) }
+        } else clearSession(expectedSession)
     }
 
     fun clearSession(expectedSession: String? = null) {
         if (expectedSession != null && expectedSession != state.value.sessionId) return
+        detachedExistingEdit = false
+        retainedEditSession = null
         if (state.value.busy) discardAfterBusy = true
         mutable.update { it.copy(query = "", sort = EpubPassageSort.RECORD_ORDER,
             draft = null, pendingDelete = null, pendingEdit = null, editColor = null, editNote = "", message = null,
@@ -183,8 +269,10 @@ internal class EpubPassagesViewModel(
     }
 
     fun requestEdit(expected: EpubPassage) {
+        // The second fixed recovery occupies the former editor fields. No third editor is admitted.
         val current = state.value
-        if (!canBrowse() || current.loading || current.loadFailed || current.entries.singleOrNull { it.id == expected.id } != expected) return
+        if (!canBrowse() || current.loading || current.loadFailed || current.recoveredNote != null || current.additionalRecoveredEdit != null ||
+            current.entries.singleOrNull { it.id == expected.id } != expected) return
         mutable.update { it.copy(pendingEdit = expected, editColor = expected.highlightColor,
             editNote = expected.attachedNote ?: "", message = null, editRevision = it.editRevision + 1) }
     }
@@ -221,3 +309,7 @@ internal class EpubPassagesViewModel(
         }
     }
 }
+
+private fun passageDraftFingerprint(passage: EpubPassage): String = readerDraftFingerprint(
+    passage.id, passage.revision.toString(), passage.createdAt.toString(), passage.text,
+    passage.anchor.toString(), passage.highlightColor?.name.orEmpty(), passage.attachedNote.orEmpty())

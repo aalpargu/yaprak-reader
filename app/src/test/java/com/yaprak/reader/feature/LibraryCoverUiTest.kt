@@ -50,7 +50,6 @@ class LibraryCoverUiTest {
         }
         compose.onNodeWithText(text(R.string.custom_cover_change)).performScrollTo().assertIsDisplayed().performClick()
         compose.onNodeWithText(text(R.string.custom_cover_reset)).performScrollTo().assertIsDisplayed().performClick()
-        compose.onNodeWithText(text(R.string.custom_cover_help)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(text(R.string.close)).assertIsDisplayed()
         assertEquals(1, changes)
         assertEquals(1, resets)

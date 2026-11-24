@@ -24,7 +24,8 @@ private val Context.epubPreferences by preferencesDataStore(name = "epub_setting
 
 class DataStoreEpubSettings(private val store: DataStore<Preferences>) : EpubSettingsRepository,
     ScreenAwakeSettingsRepository, LibraryPreferencesRepository, PdfNightSettingsRepository,
-    ReaderOrientationSettingsRepository, WeeklyReadingGoalRepository, DailyReadingGoalRepository, VolumeKeySettingsRepository, TapZoneSettingsRepository {
+    ReaderOrientationSettingsRepository, WeeklyReadingGoalRepository, DailyReadingGoalRepository, VolumeKeySettingsRepository, TapZoneSettingsRepository,
+    com.yaprak.reader.domain.statistics.ReadingReminderRepository {
     constructor(context: Context) : this(context.applicationContext.epubPreferences)
 
     // Read failures propagate. Never silently overwrite an unreadable file with defaults.
@@ -87,6 +88,22 @@ class DataStoreEpubSettings(private val store: DataStore<Preferences>) : EpubSet
         validateDailyReadingGoal(minutes)
         store.edit { values ->
             if (minutes == null) values.remove(dailyReadingGoal) else values[dailyReadingGoal] = minutes
+        }
+    }
+
+    override val reminderMinuteOfDay = store.data.map { values ->
+        val raw = values.asMap()[readingReminder]
+        if (raw == null) null else {
+            require(raw is Int) { "Invalid reading reminder preference" }
+            com.yaprak.reader.domain.statistics.validateReadingReminder(raw)
+            raw
+        }
+    }.distinctUntilChanged()
+
+    override suspend fun saveReminderMinuteOfDay(minuteOfDay: Int?) {
+        com.yaprak.reader.domain.statistics.validateReadingReminder(minuteOfDay)
+        store.edit { values ->
+            if (minuteOfDay == null) values.remove(readingReminder) else values[readingReminder] = minuteOfDay
         }
     }
 
@@ -176,6 +193,7 @@ class DataStoreEpubSettings(private val store: DataStore<Preferences>) : EpubSet
         val readerOrientation = stringPreferencesKey("reader_orientation")
         val weeklyReadingGoal = intPreferencesKey("weekly_reading_goal_minutes")
         val dailyReadingGoal = intPreferencesKey("daily_reading_goal_minutes")
+        val readingReminder = intPreferencesKey("reading_reminder_minute_of_day")
         val libraryLayout = stringPreferencesKey("library_layout")
         val librarySort = stringPreferencesKey("library_sort")
     }

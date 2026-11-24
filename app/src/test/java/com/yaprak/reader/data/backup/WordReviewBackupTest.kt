@@ -64,7 +64,7 @@ class WordReviewBackupTest {
             val first = seed(source); val expected = repo(source.db).load()
             assertEquals(BackupResult.Created(1), source.backup(documents).create("content://backup"))
             val zip = entries(documents.bytes!!); val manifest = JSONObject(zip.getValue("manifest.json").toString(Charsets.UTF_8))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             assertEquals(BackupResult.Restored(1), target.backup(documents).restore("content://backup"))
             target.db.close(); target = target.copy(db = open(target.name))
             assertEquals(expected, repo(target.db).load()); assertTrue(expected.history.any { it.event == first && it.previousContent })

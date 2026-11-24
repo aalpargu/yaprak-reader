@@ -18,13 +18,15 @@ import java.time.format.DateTimeFormatter
 @Composable
 internal fun WordReviewScreen(state: WordReviewState, onCommand: (Long, String) -> Unit,
     onRate: (Long, WordRating) -> Unit, onReload: (Long) -> Unit, onRetry: (Long) -> Unit, onBack: () -> Unit) {
-    Scaffold(bottomBar = { Surface { TextButton(onBack, Modifier.fillMaxWidth().navigationBarsPadding()) {
-        Text(stringResource(R.string.review_back), Modifier.fillMaxWidth())
-    } } }) { insets ->
+    var helpOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    Scaffold(topBar = {
+        com.yaprak.reader.ui.theme.YaprakTopBar(stringResource(R.string.review_title), stringResource(R.string.review_back),
+            onBack, "review-back", onInfo = { helpOpen = !helpOpen })
+    }) { insets ->
         LazyColumn(Modifier.fillMaxSize().padding(insets).testTag("review-list"), contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item("title") { Text(stringResource(R.string.review_title), style = MaterialTheme.typography.headlineMedium) }
-            item("help") { Text(stringResource(R.string.review_help), style = MaterialTheme.typography.bodySmall) }
+            if (helpOpen) item("help") { Text(stringResource(R.string.review_help), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (state.loading || state.busy) item("busy") { CircularProgressIndicator(); Text(stringResource(R.string.review_loading)) }
             state.receipt?.let { receipt -> item("receipt") {
                 Text(stringResource(R.string.review_saved, reviewDate(receipt.dueAt, receipt.zoneId)), Modifier.testTag("review-receipt"))

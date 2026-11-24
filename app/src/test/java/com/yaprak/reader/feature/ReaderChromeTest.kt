@@ -38,7 +38,7 @@ class ReaderChromeTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val events = mutableListOf<String>()
 
-    private val ocrLabel = "Bu sayfada OCR · isteğe bağlı"
+    private val ocrLabel = "Bu sayfada yazı tanı (OCR)"
     private val ocrDisclosure = "OCR, bu sayfadaki Latin harfli yazıyı tanımayı dener. Türkçe ve İngilizce desteklenir; sonuçları kontrol et. Görsel ve metin cihazda işlenir. Google ML Kit kullanım ve performans ölçümlerini Google ile paylaşabilir."
     @Test fun optionalOcrDisclosureAndActionWrapAtActualDoubleTypeAndOldCallbackCannotRetarget() {
         largeFont()
@@ -47,15 +47,15 @@ class ReaderChromeTest {
         compose.readerToolNodeWithText(ocrLabel).assertDoesNotExist()
         compose.runOnIdle { callback = { events += "first" } }
         readable(ocrDisclosure); readable(ocrLabel)
-        compose.readerToolNodeWithText(ocrLabel).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(ocrLabel).scrollToIfNeeded().assertIsDisplayed()
         compose.readerToolNodeWithText(ocrLabel, useUnmergedTree = true).assertFontScale(2f)
         capture("ocr-chrome-narrow-font2")
         val old = compose.readerToolNodeWithText(ocrLabel).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { callback = { events += "next" } }
         compose.waitForIdle(); compose.runOnIdle { old() }; assertTrue(events.isEmpty())
-        compose.readerToolNodeWithText(ocrLabel).performScrollTo().performClick(); assertEquals(listOf("next"), events)
+        compose.readerToolNodeWithText(ocrLabel).scrollToIfNeeded().performClick(); compose.waitForIdle(); assertEquals(listOf("next"), events)
         compose.runOnIdle { callback = null }
-        compose.runOnIdle { old() }; assertEquals(listOf("next"), events)
+        compose.runOnIdle { old() }; compose.waitForIdle(); assertEquals(listOf("next"), events)
         compose.readerToolNodeWithText(ocrDisclosure).assertDoesNotExist()
     }
     @Test @Config(qualifiers = "w640dp-h320dp-land-mdpi")
@@ -63,9 +63,9 @@ class ReaderChromeTest {
         largeFont()
         compose.setContent { YaprakTheme { chrome(BookFormat.PDF, onPdfOcr = { events += "ocr" }) } }
         readable(ocrDisclosure); readable(ocrLabel)
-        compose.readerToolNodeWithText(ocrLabel).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(ocrLabel).scrollToIfNeeded().assertIsDisplayed()
         capture("ocr-chrome-landscape-font2")
-        compose.readerToolNodeWithText(ocrLabel).performClick(); assertEquals(listOf("ocr"), events)
+        compose.readerToolNodeWithText(ocrLabel).performClick(); compose.waitForIdle(); assertEquals(listOf("ocr"), events)
     }
     @Test fun ocrRequiresVisibleReadyPdfAndDisposedActionCannotSurviveHiddenControls() {
         var format by mutableStateOf(BookFormat.PDF); var visible by mutableStateOf(true)
@@ -94,19 +94,19 @@ class ReaderChromeTest {
             chrome(BookFormat.PDF, state = ready, visible = visible, pdfDoublePagePreferred = preferred,
                 onPdfSpread = { preferred = !preferred; toggles++ })
         } }
-        compose.readerToolNodeWithText(doubleLabel).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(doubleLabel).scrollToIfNeeded().assertIsDisplayed()
         readable(doubleLabel)
         val old = compose.readerToolNodeWithText(doubleLabel).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.readerToolNodeWithText(doubleLabel).performClick()
-        compose.readerToolNodeWithText(singleLabel).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(singleLabel).scrollToIfNeeded().assertIsDisplayed()
         readable(singleLabel)
         readable(RuntimeEnvironment.getApplication().getString(R.string.pdf_spread_help))
-        compose.runOnIdle { old() }; assertEquals(1, toggles)
+        compose.runOnIdle { old() }; compose.waitForIdle(); assertEquals(1, toggles)
         compose.readerToolNodeWithText(singleLabel).performClick()
-        compose.runOnIdle { old() }; assertEquals(2, toggles)
+        compose.runOnIdle { old() }; compose.waitForIdle(); assertEquals(2, toggles)
         val fresh = compose.readerToolNodeWithText(doubleLabel).fetchSemanticsNode().config[SemanticsActions.OnClick].action!!
         compose.runOnIdle { visible = false }
-        compose.runOnIdle { fresh() }; assertEquals(2, toggles)
+        compose.runOnIdle { fresh() }; compose.waitForIdle(); assertEquals(2, toggles)
     }
 
     @Test @Config(qualifiers = "w640dp-h320dp-land-mdpi")
@@ -117,24 +117,33 @@ class ReaderChromeTest {
         compose.setContent { YaprakTheme {
             chrome(format, pdfDoublePagePreferred = true, onPdfSpread = { events += "spread" })
         } }
-        compose.readerToolNodeWithText(single).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(single).scrollToIfNeeded().assertIsDisplayed()
         readable(single)
         readable(RuntimeEnvironment.getApplication().getString(R.string.pdf_spread_help))
-        compose.readerToolNodeWithText(single).performClick(); assertEquals(listOf("spread"), events)
+        compose.readerToolNodeWithText(single).performClick(); compose.waitForIdle(); assertEquals(listOf("spread"), events)
         compose.runOnIdle { format = BookFormat.EPUB }
         compose.readerToolNodeWithText(single).assertDoesNotExist()
+    }
+
+    /** Opens a bottom-bar panel (İçerik / Görünüm) and runs one of its rows, as a reader would. */
+    private fun panelAction(panel: String, row: String) {
+        compose.onNodeWithText(panel).performClick(); compose.waitForIdle()
+        readable(row)
+        compose.onNodeWithText(row).performScrollTo().assertIsDisplayed().performClick(); compose.waitForIdle()
     }
 
     @Test fun `narrow EPUB keeps navigation readable at double font scale`() {
         largeFont()
         show(BookFormat.EPUB)
         capture("reader-narrow-epub")
-        compose.readerToolNodeWithText("Önceki", useUnmergedTree = true).assertFontScale(2f)
-        listOf("Önceki", "Görünüm", "Kitap görünümü", "Seçili metni göster", "Kelimeler", "Notlar", "Vurgular ve notlar", "Kitapta ara", "Sonraki", "İçindekiler", "Yer imleri").forEach { action ->
-            readable(action)
-            compose.readerToolNodeWithText(action).performScrollTo().assertIsDisplayed().performClick()
-        }
-        assertEquals(listOf("previous", "settings", "bookAppearance", "selection", "words", "notes", "passages", "search", "next", "contents", "bookmarks"), events)
+        listOf("İçerik", "Ara", "Görünüm", "Diğer").forEach(::readable)
+        compose.onNodeWithContentDescription("Önceki").performClick()
+        compose.onNodeWithContentDescription("Sonraki").performClick()
+        panelAction("İçerik", "İçindekiler"); panelAction("İçerik", "Yer imleri")
+        panelAction("İçerik", "Vurgular"); panelAction("İçerik", "Notlar")
+        panelAction("Görünüm", "Diğer yazı ayarları"); panelAction("Görünüm", "Varsayılan yazı ve tema")
+        compose.onNodeWithText("Ara").performClick(); compose.waitForIdle()
+        assertEquals(listOf("previous", "next", "contents", "bookmarks", "passages", "notes", "bookAppearance", "settings", "search"), events)
         capture("reader-narrow-epub")
     }
 
@@ -144,17 +153,15 @@ class ReaderChromeTest {
         capture("reader-narrow-pdf")
         readable("9999 / 10000")
         compose.onNodeWithContentDescription("PDF sayfası 9999 / 10000").assertExists()
-        listOf("Önceki", "Sonraki", "Yer imleri", "Sayfaya git", "Kelimeler", "Notlar").forEach { action ->
-            readable(action)
-            compose.readerToolNodeWithText(action).performScrollTo().assertIsDisplayed().performClick()
-        }
-        compose.readerToolNodeWithText("Görünüm").assertDoesNotExist()
-        compose.readerToolNodeWithText("Kitap görünümü").assertDoesNotExist()
-        compose.readerToolNodeWithText("Seçili metni göster").assertDoesNotExist()
-        compose.readerToolNodeWithText("Vurgular ve notlar").assertDoesNotExist()
-        compose.readerToolNodeWithText("İçindekiler").assertDoesNotExist()
-        compose.readerToolNodeWithText("Kitapta ara").assertDoesNotExist()
-        assertEquals(listOf("previous", "next", "bookmarks", "page", "words", "notes"), events)
+        compose.onNodeWithContentDescription("Önceki").performClick()
+        compose.onNodeWithContentDescription("Sonraki").performClick()
+        compose.onNodeWithText("9999 / 10000").performClick(); compose.waitForIdle()
+        panelAction("İçerik", "Yer imleri"); panelAction("İçerik", "Notlar")
+        compose.onNodeWithText("İçerik").performClick(); compose.waitForIdle()
+        compose.onNodeWithText("İçindekiler").assertDoesNotExist()
+        compose.onNodeWithText("Vurgular").assertDoesNotExist()
+        compose.onNodeWithText("Ara").assertIsNotEnabled()
+        assertEquals(listOf("previous", "next", "page", "bookmarks", "notes"), events)
         capture("reader-narrow-pdf")
     }
 
@@ -162,10 +169,10 @@ class ReaderChromeTest {
     fun `short landscape allows recovery and navigation without overlap`() {
         largeFont()
         show(BookFormat.PDF, saveFailed = true, loadFailed = true)
-        listOf("Tekrar kaydet", "Kaydetmeden çık", "Kitaplık", "Sonraki", "Sayfaya git").forEach { action ->
-            compose.readerToolNodeWithText(action).performScrollTo().assertIsDisplayed().performClick()
+        listOf("Tekrar kaydet", "Kaydetmeden çık", "Kitaplığa dön").forEach { action ->
+            compose.readerToolNodeWithText(action).scrollToIfNeeded().assertIsDisplayed().performClick()
         }
-        assertEquals(listOf("save", "discard", "back", "next", "page"), events)
+        compose.waitForIdle(); assertEquals(listOf("save", "discard", "back"), events)
         capture("reader-landscape-errors")
     }
 
@@ -173,9 +180,9 @@ class ReaderChromeTest {
     fun `open failure retains retry and library exit at large font`() {
         largeFont()
         show(BookFormat.EPUB, state = ReaderState.Error(ReaderFailure.CHANGED))
-        compose.readerToolNodeWithText("Yeniden dene").performScrollTo().assertIsDisplayed().performClick()
-        compose.readerToolNodeWithText("Kitaplığa dön").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(listOf("retry", "back"), events)
+        compose.readerToolNodeWithText("Yeniden dene").scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.readerToolNodeWithText("Kitaplığa dön").scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.waitForIdle(); assertEquals(listOf("retry", "back"), events)
     }
 
     @Test fun `restore recovery failure explains why reader is unavailable`() {
@@ -193,7 +200,7 @@ class ReaderChromeTest {
         compose.runOnIdle { failed = true }
         compose.readerToolNodeWithText("Tekrar kaydet").performClick()
         compose.readerToolNodeWithText("Kaydetmeden çık").performClick()
-        assertEquals(listOf("save", "discard"), events)
+        compose.waitForIdle(); assertEquals(listOf("save", "discard"), events)
     }
 
     @Test fun `EPUB position is formatted as an approximate location for accessibility`() {
@@ -201,7 +208,7 @@ class ReaderChromeTest {
         compose.setContent { YaprakTheme { chrome(BookFormat.EPUB, bookPositionPercent = percent) } }
         listOf(0, 50, 100).forEach { value ->
             compose.runOnIdle { percent = value }
-            compose.readerToolNodeWithText("Yaklaşık kitap konumu: %$value").assertExists()
+            compose.onNodeWithText("%$value").assertExists()
             compose.onNodeWithContentDescription("Kitaptaki yaklaşık konum yüzde $value").assertExists()
         }
         compose.runOnIdle { percent = null }
@@ -228,8 +235,8 @@ class ReaderChromeTest {
         compose.onNodeWithContentDescription(label).assertDoesNotExist()
 
         compose.runOnIdle { jumpBack = { events += "jumpBack" } }
-        compose.onNodeWithContentDescription(label).performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(listOf("jumpBack"), events)
+        compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.waitForIdle(); assertEquals(listOf("jumpBack"), events)
 
         compose.runOnIdle { visible = false }
         compose.onNodeWithContentDescription(label).assertDoesNotExist()
@@ -241,16 +248,16 @@ class ReaderChromeTest {
         var visible by mutableStateOf(true)
         var screenAwake by mutableStateOf<(() -> Unit)?>(null)
         compose.setContent { YaprakTheme { chrome(format, visible = visible, onScreenAwake = screenAwake) } }
-        compose.readerToolNodeWithText("Ekran").assertDoesNotExist()
+        compose.readerToolNodeWithText("Ekranı açık tut").assertDoesNotExist()
 
         compose.runOnIdle { screenAwake = { events += "screenAwake" } }
-        compose.readerToolNodeWithText("Ekran").performScrollTo().assertIsDisplayed().performClick()
+        compose.readerToolNodeWithText("Ekranı açık tut").scrollToIfNeeded().assertIsDisplayed().performClick()
         compose.runOnIdle { format = BookFormat.PDF }
-        compose.readerToolNodeWithText("Ekran").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(listOf("screenAwake", "screenAwake"), events)
+        compose.readerToolNodeWithText("Ekranı açık tut").scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.waitForIdle(); assertEquals(listOf("screenAwake", "screenAwake"), events)
 
         compose.runOnIdle { visible = false }
-        compose.readerToolNodeWithText("Ekran").assertDoesNotExist()
+        compose.readerToolNodeWithText("Ekranı açık tut").assertDoesNotExist()
     }
 
     @Test fun `PDF night control switches labels and keeps its notice readable at double font scale`() {
@@ -265,19 +272,19 @@ class ReaderChromeTest {
         val notice = "Gece görünümünde görsel ve diyagram renkleri de ters çevrilir."
         compose.readerToolNodeWithText("Gece görünümü", useUnmergedTree = true).assertFontScale(2f)
         readable("Gece görünümü")
-        compose.readerToolNodeWithText("Özgün renkler").assertDoesNotExist()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertDoesNotExist()
         compose.readerToolNodeWithText(notice).assertDoesNotExist()
-        compose.readerToolNodeWithText("Gece görünümü").performScrollTo().assertIsDisplayed().performClick()
+        compose.readerToolNodeWithText("Gece görünümü").scrollToIfNeeded().assertIsDisplayed().performClick()
 
-        readable("Özgün renkler")
+        readable("Özgün renklere dön")
         compose.readerToolNodeWithText("Gece görünümü").assertDoesNotExist()
-        compose.readerToolNodeWithText(notice).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(notice).scrollToIfNeeded().assertIsDisplayed()
         readable(notice)
-        compose.readerToolNodeWithText("Özgün renkler").performScrollTo().assertIsDisplayed().performClick()
+        compose.readerToolNodeWithText("Özgün renklere dön").scrollToIfNeeded().assertIsDisplayed().performClick()
         compose.readerToolNodeWithText("Gece görünümü").assertExists()
-        compose.readerToolNodeWithText("Özgün renkler").assertDoesNotExist()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertDoesNotExist()
         compose.readerToolNodeWithText(notice).assertDoesNotExist()
-        assertEquals(listOf("pdfNight", "pdfNight"), events)
+        compose.waitForIdle(); assertEquals(listOf("pdfNight", "pdfNight"), events)
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.LEGACY)
@@ -288,14 +295,14 @@ class ReaderChromeTest {
         } }
         val notice = "Gece görünümünde görsel ve diyagram renkleri de ters çevrilir."
         compose.readerToolNodeWithText("Gece görünümü").assertDoesNotExist()
-        compose.readerToolNodeWithText("Özgün renkler").assertDoesNotExist()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertDoesNotExist()
         compose.readerToolNodeWithText(notice).assertDoesNotExist()
         compose.runOnIdle { capability = { events += "pdfNight" } }
-        compose.readerToolNodeWithText("Özgün renkler").performScrollTo().assertIsDisplayed().performClick()
+        compose.readerToolNodeWithText("Özgün renklere dön").scrollToIfNeeded().assertIsDisplayed().performClick()
         compose.readerToolNodeWithText(notice).assertExists()
-        assertEquals(listOf("pdfNight"), events)
+        compose.waitForIdle(); assertEquals(listOf("pdfNight"), events)
         compose.runOnIdle { capability = null }
-        compose.readerToolNodeWithText("Özgün renkler").assertDoesNotExist()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertDoesNotExist()
         compose.readerToolNodeWithText(notice).assertDoesNotExist()
     }
 
@@ -307,19 +314,19 @@ class ReaderChromeTest {
             chrome(format, state = state, onPdfNightMode = { events += "pdfNight" }, pdfNightMode = true)
         } }
         val notice = "Gece görünümünde görsel ve diyagram renkleri de ters çevrilir."
-        listOf("Gece görünümü", "Özgün renkler", notice).forEach {
+        listOf("Gece görünümü", "Özgün renklere dön", notice).forEach {
             compose.readerToolNodeWithText(it).assertDoesNotExist()
         }
         compose.runOnIdle { format = BookFormat.PDF; state = ReaderState.Loading }
         compose.readerToolNodeWithText("Kitap açılıyor…").assertExists()
-        compose.readerToolNodeWithText("Özgün renkler").assertDoesNotExist()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertDoesNotExist()
         compose.readerToolNodeWithText(notice).assertDoesNotExist()
         compose.runOnIdle { state = ReaderState.Error(ReaderFailure.INVALID) }
         compose.readerToolNodeWithText("Yeniden dene").assertExists()
-        compose.readerToolNodeWithText("Özgün renkler").assertDoesNotExist()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertDoesNotExist()
         compose.readerToolNodeWithText(notice).assertDoesNotExist()
         compose.runOnIdle { state = ready(BookFormat.PDF) }
-        compose.readerToolNodeWithText("Özgün renkler").assertExists()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertExists()
         compose.readerToolNodeWithText(notice).assertExists()
     }
 
@@ -330,11 +337,11 @@ class ReaderChromeTest {
             chrome(BookFormat.PDF, visible = visible, onPdfNightMode = { events += "pdfNight" }, pdfNightMode = true)
         } }
         val notice = "Gece görünümünde görsel ve diyagram renkleri de ters çevrilir."
-        compose.readerToolNodeWithText("Özgün renkler").assertExists()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertExists()
         compose.readerToolNodeWithText(notice).assertExists()
         compose.runOnIdle { visible = false }
         compose.readerToolNodeWithText("Gece görünümü").assertDoesNotExist()
-        compose.readerToolNodeWithText("Özgün renkler").assertDoesNotExist()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertDoesNotExist()
         compose.readerToolNodeWithText(notice).assertDoesNotExist()
         assertTrue(events.isEmpty())
     }
@@ -346,12 +353,12 @@ class ReaderChromeTest {
                 pdfNightModeStatus = PdfNightModeStatus.Loading)
         } }
         compose.readerToolNodeWithText("PDF gece görünümü tercihi yükleniyor…").assertExists()
-        compose.readerToolNodeWithText("Özgün renkler").assertIsNotEnabled()
+        compose.readerToolNodeWithText("Özgün renklere dön").assertIsNotEnabled()
         compose.readerToolNodeWithText("Gece görünümünde görsel ve diyagram renkleri de ters çevrilir.").assertDoesNotExist()
         compose.readerToolNodeWithText("Tercihi yeniden dene").assertDoesNotExist()
-        compose.readerToolNodeWithText("Sonraki").performScrollTo().assertIsEnabled().performClick()
-        compose.readerToolNodeWithText("Sayfaya git").performScrollTo().assertIsEnabled().performClick()
-        assertEquals(listOf("next", "page"), events)
+        compose.readerToolNodeWithText("Sonraki").assertIsEnabled().performClick()
+        compose.readerToolNodeWithText("Sayfaya git").scrollToIfNeeded().assertIsEnabled().performClick()
+        compose.waitForIdle(); assertEquals(listOf("next", "page"), events)
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.LEGACY)
@@ -363,9 +370,9 @@ class ReaderChromeTest {
         } }
         compose.readerToolNodeWithText("PDF gece görünümü tercihi okunamadı.").assertExists()
         compose.readerToolNodeWithText("Gece görünümü").assertIsNotEnabled()
-        compose.readerToolNodeWithText("Tercihi yeniden dene").performScrollTo().assertIsDisplayed().performClick()
-        compose.readerToolNodeWithText("Önceki").performScrollTo().assertIsEnabled().performClick()
-        assertEquals(listOf("pdfRetry", "previous"), events)
+        compose.readerToolNodeWithText("Tercihi yeniden dene").scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.readerToolNodeWithText("Önceki").assertIsEnabled().performClick()
+        compose.waitForIdle(); assertEquals(listOf("pdfRetry", "previous"), events)
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.LEGACY)
@@ -376,12 +383,12 @@ class ReaderChromeTest {
                 pdfNightMode = enabled, pdfNightModeStatus = PdfNightModeStatus.Saving)
         } }
         compose.readerToolNodeWithText("PDF gece görünümü tercihi kaydediliyor…").assertExists()
-        compose.readerToolNodeWithText("Özgün renkler").performScrollTo().assertIsEnabled().performClick()
+        compose.readerToolNodeWithText("Özgün renklere dön").scrollToIfNeeded().assertIsEnabled().performClick()
         compose.readerToolNodeWithText("Gece görünümü").assertIsEnabled()
         compose.readerToolNodeWithText("Gece görünümünde görsel ve diyagram renkleri de ters çevrilir.").assertDoesNotExist()
         compose.readerToolNodeWithText("Tercihi yeniden dene").assertDoesNotExist()
-        compose.readerToolNodeWithText("Sonraki").performScrollTo().assertIsEnabled().performClick()
-        assertEquals(listOf("pdfNight", "next"), events)
+        compose.readerToolNodeWithText("Sonraki").assertIsEnabled().performClick()
+        compose.waitForIdle(); assertEquals(listOf("pdfNight", "next"), events)
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.LEGACY)
@@ -394,11 +401,11 @@ class ReaderChromeTest {
         } }
         compose.readerToolNodeWithText("PDF gece görünümü tercihi kaydedilemedi. Seçim bu oturumda sürüyor.").assertExists()
         compose.readerToolNodeWithText("Gece görünümünde görsel ve diyagram renkleri de ters çevrilir.").assertExists()
-        compose.readerToolNodeWithText("Özgün renkler").performScrollTo().assertIsEnabled().performClick()
+        compose.readerToolNodeWithText("Özgün renklere dön").scrollToIfNeeded().assertIsEnabled().performClick()
         compose.readerToolNodeWithText("Gece görünümü").assertIsEnabled()
         compose.readerToolNodeWithText("Gece görünümünde görsel ve diyagram renkleri de ters çevrilir.").assertDoesNotExist()
-        compose.readerToolNodeWithText("Tercihi yeniden dene").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(listOf("pdfNight", "pdfRetry"), events)
+        compose.readerToolNodeWithText("Tercihi yeniden dene").scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.waitForIdle(); assertEquals(listOf("pdfNight", "pdfRetry"), events)
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.LEGACY)
@@ -427,8 +434,8 @@ class ReaderChromeTest {
         } }
         compose.readerToolNodeWithText("Kitap yüzdesine git", useUnmergedTree = true).assertFontScale(2f)
         readable("Kitap yüzdesine git")
-        compose.readerToolNodeWithText("Kitap yüzdesine git").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(listOf("bookPosition"), events)
+        compose.readerToolNodeWithText("Kitap yüzdesine git").scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.waitForIdle(); assertEquals(listOf("bookPosition"), events)
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.LEGACY)
@@ -473,11 +480,11 @@ class ReaderChromeTest {
         listOf("Sayfaya sığdır", "Genişliğe sığdır").forEach { label ->
             compose.readerToolNodeWithText(label, useUnmergedTree = true).assertFontScale(2f)
             readable(label)
-            compose.readerToolNodeWithText(label).performScrollTo().assertIsDisplayed().performClick()
+            compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed().performClick()
         }
-        compose.readerToolNodeWithText("Sayfaya sığdır").performScrollTo().assertIsEnabled().performClick()
+        compose.readerToolNodeWithText("Sayfaya sığdır").scrollToIfNeeded().assertIsEnabled().performClick()
         compose.onNodeWithContentDescription("PDF sayfası 9999 / 10000").assertExists()
-        assertEquals(listOf("fitPage", "fitWidth", "fitPage"), events)
+        compose.waitForIdle(); assertEquals(listOf("fitPage", "fitWidth", "fitPage"), events)
     }
 
     @Test fun `fit commands require their PDF capabilities and remain absent for EPUB loading and hidden tools`() {
@@ -522,14 +529,14 @@ class ReaderChromeTest {
         compose.setContent { YaprakTheme {
             chrome(format, onScreenAwake = { events += "screen" }, onBrightness = { events += "brightness" })
         } }
-        listOf("Ekran", "Parlaklık").forEach { label ->
+        listOf("Ekranı açık tut", "Parlaklık").forEach { label ->
             compose.readerToolNodeWithText(label, useUnmergedTree = true).assertFontScale(2f)
             readable(label)
-            compose.readerToolNodeWithText(label).performScrollTo().assertIsDisplayed().performClick()
+            compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed().performClick()
         }
         compose.runOnIdle { format = BookFormat.PDF }
-        compose.readerToolNodeWithText("Parlaklık").performScrollTo().assertIsDisplayed().performClick()
-        assertEquals(listOf("screen", "brightness", "brightness"), events)
+        compose.readerToolNodeWithText("Parlaklık").scrollToIfNeeded().assertIsDisplayed().performClick()
+        compose.waitForIdle(); assertEquals(listOf("screen", "brightness", "brightness"), events)
     }
 
     @Test fun `brightness command requires visible ready tools without load or save errors`() {
@@ -568,12 +575,12 @@ class ReaderChromeTest {
             chrome(BookFormat.EPUB, onScreenAwake = { events += "screen" },
                 onBrightness = { events += "brightness" }, onEpubImages = { events += "images" })
         } }
-        listOf("Görünüm", "Ekran", "Parlaklık", "Koyu tema görselleri").forEach { label ->
+        listOf("Ekranı açık tut", "Parlaklık", "Koyu temada görseller").forEach { label ->
             compose.readerToolNodeWithText(label, useUnmergedTree = true).assertFontScale(2f)
             readable(label)
-            compose.readerToolNodeWithText(label).performScrollTo().assertIsDisplayed().performClick()
+            compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed().performClick()
         }
-        assertEquals(listOf("settings", "screen", "brightness", "images"), events)
+        compose.waitForIdle(); assertEquals(listOf("screen", "brightness", "images"), events)
     }
 
     @Test fun `EPUB image command requires a callback and visible ready EPUB without errors`() {
@@ -587,25 +594,25 @@ class ReaderChromeTest {
             chrome(format, state = state, visible = visible, saveFailed = saveFailed,
                 loadFailed = loadFailed, onEpubImages = images)
         } }
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertDoesNotExist()
+        compose.readerToolNodeWithText("Koyu temada görseller").assertDoesNotExist()
         compose.runOnIdle { images = { events += "images" } }
-        compose.readerToolNodeWithText("Koyu tema görselleri").performScrollTo().performClick()
+        compose.readerToolNodeWithText("Koyu temada görseller").scrollToIfNeeded().performClick()
         compose.runOnIdle { visible = false }
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertDoesNotExist()
+        compose.readerToolNodeWithText("Koyu temada görseller").assertDoesNotExist()
         compose.runOnIdle { saveFailed = true }
         compose.readerToolNodeWithText("Tekrar kaydet").assertExists()
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertDoesNotExist()
+        compose.readerToolNodeWithText("Koyu temada görseller").assertDoesNotExist()
         compose.runOnIdle { visible = true; saveFailed = false; loadFailed = true }
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertDoesNotExist()
+        compose.readerToolNodeWithText("Koyu temada görseller").assertDoesNotExist()
         compose.runOnIdle { loadFailed = false; state = ReaderState.Loading }
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertDoesNotExist()
+        compose.readerToolNodeWithText("Koyu temada görseller").assertDoesNotExist()
         compose.runOnIdle { state = ReaderState.Error(ReaderFailure.INVALID) }
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertDoesNotExist()
+        compose.readerToolNodeWithText("Koyu temada görseller").assertDoesNotExist()
         compose.runOnIdle { format = BookFormat.PDF; state = ready(format) }
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertDoesNotExist()
+        compose.readerToolNodeWithText("Koyu temada görseller").assertDoesNotExist()
         compose.runOnIdle { format = BookFormat.EPUB; state = ready(format) }
-        compose.readerToolNodeWithText("Koyu tema görselleri").assertExists()
-        assertEquals(listOf("images"), events)
+        compose.readerToolNodeWithText("Koyu temada görseller").assertExists()
+        compose.waitForIdle(); assertEquals(listOf("images"), events)
     }
 
     @Test fun `orientation action is available for ready EPUB and PDF and hidden on loading errors or hidden tools`() {
@@ -616,9 +623,9 @@ class ReaderChromeTest {
         var loadFailed by mutableStateOf(false)
         compose.setContent { YaprakTheme { chrome(format, state = state, visible = visible,
             saveFailed = saveFailed, loadFailed = loadFailed, onOrientation = { events += "orientation" }) } }
-        compose.readerToolNodeWithText("Ekran yönü").performScrollTo().performClick()
+        compose.readerToolNodeWithText("Ekran yönü").scrollToIfNeeded().performClick()
         compose.runOnIdle { format = BookFormat.PDF; state = ready(format) }
-        compose.readerToolNodeWithText("Ekran yönü").performScrollTo().performClick()
+        compose.readerToolNodeWithText("Ekran yönü").scrollToIfNeeded().performClick()
         compose.runOnIdle { visible = false }
         compose.readerToolNodeWithText("Ekran yönü").assertDoesNotExist()
         compose.runOnIdle { visible = true; saveFailed = true }
@@ -629,15 +636,15 @@ class ReaderChromeTest {
         compose.readerToolNodeWithText("Ekran yönü").assertDoesNotExist()
         compose.runOnIdle { state = ReaderState.Error(ReaderFailure.INVALID) }
         compose.readerToolNodeWithText("Ekran yönü").assertDoesNotExist()
-        assertEquals(listOf("orientation", "orientation"), events)
+        compose.waitForIdle(); assertEquals(listOf("orientation", "orientation"), events)
     }
 
     @Test fun `orientation request failure has explicit retry without claiming physical rotation`() {
         compose.setContent { YaprakTheme { chrome(BookFormat.PDF, orientationApplyFailed = true,
             onRetryOrientation = { events += "orientationRetry" }) } }
         compose.readerToolNodeWithText("Kayıtlı ekran yönü uygulanamadı.").assertExists()
-        compose.readerToolNodeWithText("Ekran yönünü yeniden dene").performScrollTo().performClick()
-        assertEquals(listOf("orientationRetry"), events)
+        compose.readerToolNodeWithText("Ekran yönünü yeniden dene").scrollToIfNeeded().performClick()
+        compose.waitForIdle(); assertEquals(listOf("orientationRetry"), events)
     }
 
     @Test fun `highlight status distinguishes unsupported partial and verified paint with retry busy gate`() {
@@ -647,7 +654,7 @@ class ReaderChromeTest {
         compose.setContent { YaprakTheme { chrome(format, highlightStatus = status,
             onRetryHighlights = { events += "highlights" }, highlightRetryBusy = busy) } }
         compose.readerToolNodeWithText("Bu Android System WebView sürümü gerçek metin vurgusunu desteklemiyor. Vurgu ve not kayıtların korunuyor; metnin üzerinde renk gösterilemiyor.").assertExists()
-        compose.readerToolNodeWithText("Vurguları yeniden doğrula").performScrollTo().performClick()
+        compose.readerToolNodeWithText("Vurguları yeniden doğrula").scrollToIfNeeded().performClick()
         compose.runOnIdle { status = EpubHighlightStatus.Partial(2, 3); busy = true }
         compose.readerToolNodeWithText("Açık bölümde 3 vurgunun 2 tanesi tam olarak doğrulanamadı ve gösterilmiyor. Kayıtlar korunuyor.").assertExists()
         compose.readerToolNodeWithText("Vurguları yeniden doğrula").assertIsNotEnabled()
@@ -656,7 +663,7 @@ class ReaderChromeTest {
         compose.readerToolNodeWithText("Vurguları yeniden doğrula").assertDoesNotExist()
         compose.runOnIdle { format = BookFormat.PDF }
         compose.readerToolNodeWithText("Açık bölümde 1 kayıtlı vurgu gösteriliyor.").assertDoesNotExist()
-        assertEquals(listOf("highlights"), events)
+        compose.waitForIdle(); assertEquals(listOf("highlights"), events)
     }
 
     @Test fun `highlight failure retry is fully readable at double font scale`() {
@@ -664,8 +671,8 @@ class ReaderChromeTest {
         compose.setContent { YaprakTheme { chrome(BookFormat.EPUB,
             highlightStatus = EpubHighlightStatus.Failed(EpubHighlightFailure.SOURCE_LIMIT),
             onRetryHighlights = { events += "highlights" }) } }
-        compose.readerToolNodeWithText("Bu bölüm kaynak doğrulama sınırını aşıyor. Metin üzerinde vurgu gösterilemiyor; kayıtların korunuyor.").performScrollTo().assertIsDisplayed()
-        compose.readerToolNodeWithText("Vurguları yeniden doğrula").performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText("Bu bölüm kaynak doğrulama sınırını aşıyor. Metin üzerinde vurgu gösterilemiyor; kayıtların korunuyor.").scrollToIfNeeded().assertIsDisplayed()
+        compose.readerToolNodeWithText("Vurguları yeniden doğrula").scrollToIfNeeded().assertIsDisplayed()
         val results = mutableListOf<TextLayoutResult>()
         compose.readerToolNodeWithText("Vurguları yeniden doğrula", useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
@@ -683,7 +690,7 @@ class ReaderChromeTest {
             saveFailed = saveFailed, loadFailed = loadFailed, onPdfThumbnails = thumbnails) } }
         compose.readerToolNodeWithText("Sayfa küçük resimleri").assertDoesNotExist()
         compose.runOnIdle { thumbnails = { events += "thumbnails" } }
-        compose.readerToolNodeWithText("Sayfa küçük resimleri").performScrollTo().performClick()
+        compose.readerToolNodeWithText("Sayfa küçük resimleri").scrollToIfNeeded().performClick()
         compose.runOnIdle { visible = false }
         compose.readerToolNodeWithText("Sayfa küçük resimleri").assertDoesNotExist()
         compose.runOnIdle { visible = true; loadFailed = true }
@@ -700,7 +707,7 @@ class ReaderChromeTest {
         compose.readerToolNodeWithText("Sayfa küçük resimleri").assertExists()
         compose.runOnIdle { thumbnails = null }
         compose.readerToolNodeWithText("Sayfa küçük resimleri").assertDoesNotExist()
-        assertEquals(listOf("thumbnails"), events)
+        compose.waitForIdle(); assertEquals(listOf("thumbnails"), events)
     }
 
     @Test @Config(qualifiers = "w640dp-h320dp-land-mdpi")
@@ -710,9 +717,9 @@ class ReaderChromeTest {
             onPdfFitPage = { events += "fitPage" }, onPdfFitWidth = { events += "fitWidth" }) } }
         listOf("Sayfaya git", "Sayfa küçük resimleri", "Sayfaya sığdır", "Genişliğe sığdır").forEach { label ->
             readable(label)
-            compose.readerToolNodeWithText(label).performScrollTo().assertIsDisplayed().performClick()
+            compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed().performClick()
         }
-        assertEquals(listOf("page", "thumbnails", "fitPage", "fitWidth"), events)
+        compose.waitForIdle(); assertEquals(listOf("page", "thumbnails", "fitPage", "fitWidth"), events)
     }
 
     @Test fun `PDF crop requires its capability and ready visible PDF without load or save errors`() {
@@ -727,7 +734,7 @@ class ReaderChromeTest {
             saveFailed = saveFailed, loadFailed = loadFailed, onPdfCrop = crop) } }
         compose.readerToolNodeWithText(label).assertDoesNotExist()
         compose.runOnIdle { crop = { events += "crop" } }
-        compose.readerToolNodeWithText(label).performScrollTo().assertIsDisplayed().performClick()
+        compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed().performClick()
         compose.runOnIdle { visible = false }
         compose.readerToolNodeWithText(label).assertDoesNotExist()
         compose.runOnIdle { visible = true; saveFailed = true }
@@ -744,7 +751,7 @@ class ReaderChromeTest {
         compose.readerToolNodeWithText(label).assertExists()
         compose.runOnIdle { crop = null }
         compose.readerToolNodeWithText(label).assertDoesNotExist()
-        assertEquals(listOf("crop"), events)
+        compose.waitForIdle(); assertEquals(listOf("crop"), events)
     }
 
     @Test fun `PDF crop restore failure shows readable recovery despite hidden tools at double type`() {
@@ -755,12 +762,12 @@ class ReaderChromeTest {
         val error = RuntimeEnvironment.getApplication().getString(R.string.pdf_crop_restore_error)
         compose.setContent { YaprakTheme { chrome(format, visible = false, pdfCropApplyFailed = failed,
             onPdfCrop = { events += "crop" }) } }
-        compose.readerToolNodeWithText(error).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(error).scrollToIfNeeded().assertIsDisplayed()
         readable(error)
-        compose.readerToolNodeWithText(label).performScrollTo().assertIsDisplayed()
+        compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed()
         readable(label)
         compose.readerToolNodeWithText(label).performClick()
-        assertEquals(listOf("crop"), events)
+        compose.waitForIdle(); assertEquals(listOf("crop"), events)
         compose.runOnIdle { failed = false }
         compose.readerToolNodeWithText(label).assertDoesNotExist()
         compose.readerToolNodeWithText(error).assertDoesNotExist()
@@ -778,9 +785,9 @@ class ReaderChromeTest {
             onPdfFitWidth = { events += "fitWidth" }) } }
         listOf(crop, "Sayfa küçük resimleri", "Sayfaya sığdır", "Genişliğe sığdır").forEach { label ->
             readable(label)
-            compose.readerToolNodeWithText(label).performScrollTo().assertIsDisplayed().performClick()
+            compose.readerToolNodeWithText(label).scrollToIfNeeded().assertIsDisplayed().performClick()
         }
-        assertEquals(listOf("crop", "thumbnails", "fitPage", "fitWidth"), events)
+        compose.waitForIdle(); assertEquals(listOf("crop", "thumbnails", "fitPage", "fitWidth"), events)
     }
 
     private fun largeFont() {
@@ -837,11 +844,11 @@ class ReaderChromeTest {
         compose.setContent { YaprakTheme {
             chrome(format, visible = visible, saveFailed = failed, onReaderControls = { opens++ })
         } }
-        compose.readerToolNodeWithText("Okuma kontrolleri").performScrollTo().performClick()
-        assertEquals(1, opens)
+        compose.readerToolNodeWithText("Okuma kontrolleri").scrollToIfNeeded().performClick()
+        compose.waitForIdle(); assertEquals(1, opens)
         compose.runOnIdle { format = BookFormat.PDF }
-        compose.readerToolNodeWithText("Okuma kontrolleri").performScrollTo().performClick()
-        assertEquals(2, opens)
+        compose.readerToolNodeWithText("Okuma kontrolleri").scrollToIfNeeded().performClick()
+        compose.waitForIdle(); assertEquals(2, opens)
         compose.runOnIdle { visible = false }
         compose.readerToolNodeWithText("Okuma kontrolleri").assertDoesNotExist()
         compose.runOnIdle { visible = true; failed = true }
@@ -858,10 +865,10 @@ class ReaderChromeTest {
                 onBack = {}, onRetry = {}, onRetrySave = {}, onLeaveUnsaved = {}, onHide = {},
                 onPrevious = {}, onNext = {}, onTapZones = if (supported) ({ opens++ }) else null)
         } }
-        compose.readerToolNodeWithText("Dokunma bölgeleri").performScrollTo().performClick()
+        compose.readerToolNodeWithText("Dokunma bölgeleri").scrollToIfNeeded().performClick()
         compose.runOnIdle { format = BookFormat.PDF }
-        compose.readerToolNodeWithText("Dokunma bölgeleri").performScrollTo().performClick()
-        assertEquals(2, opens)
+        compose.readerToolNodeWithText("Dokunma bölgeleri").scrollToIfNeeded().performClick()
+        compose.waitForIdle(); assertEquals(2, opens)
         compose.runOnIdle { supported = false }
         compose.readerToolNodeWithText("Dokunma bölgeleri").assertDoesNotExist()
         compose.runOnIdle { supported = true; visible = false }
@@ -881,7 +888,7 @@ class ReaderChromeTest {
                 onPdfCrop = { events += "wrongCrop" }, onPdfOcr = { events += "wrongOcr" })
         } }
         val title = RuntimeEnvironment.getApplication().getString(R.string.pdf_thumbnails_title)
-        readable(title); compose.readerToolNodeWithText(title).performScrollTo().assertIsDisplayed().performClick()
+        readable(title); compose.readerToolNodeWithText(title).scrollToIfNeeded().assertIsDisplayed().performClick()
         compose.onNodeWithContentDescription("Sayfa 1 / 2").assertExists()
         compose.onNodeWithContentDescription("PDF sayfası 1 / 2").assertDoesNotExist()
         compose.readerToolNodeWithText(RuntimeEnvironment.getApplication().getString(R.string.pdf_crop_title)).assertDoesNotExist()
@@ -902,13 +909,18 @@ class ReaderChromeTest {
     })
 
     private fun readable(label: String) {
+        // Icon-only bar actions have no text layout; their label is the content description.
+        compose.readerToolNodeWithText(label)
+        if (compose.onAllNodesWithText(label, useUnmergedTree = true).fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithContentDescription(label).assertExists(); return
+        }
         val layouts = mutableListOf<TextLayoutResult>()
         compose.readerToolNodeWithText(label, useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single()
         assertTrue("No text layout for $label", layout.lineCount > 0 && layout.size.width > 0)
         assertFalse("Ellipsized action: $label", (0 until layout.lineCount).any(layout::isLineEllipsized))
-        assertEquals("Incomplete action text: $label", layout.layoutInput.text.length,
+        compose.waitForIdle(); assertEquals("Incomplete action text: $label", layout.layoutInput.text.length,
             layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
     }
 

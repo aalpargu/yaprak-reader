@@ -76,7 +76,7 @@ class EpubRangeBackupTest {
             seed(source); val expected = rangeRows(source).map(JSONObject::toString)
             assertEquals(BackupResult.Created(2), source.backup(docs).create("content://backup"))
             val archive = entries(requireNotNull(docs.bytes)); val manifest = json(archive.getValue("manifest.json"))
-            assertEquals(26, manifest.getInt("formatVersion")); assertEquals(26, manifest.getInt("databaseVersion"))
+            assertEquals(28, manifest.getInt("formatVersion")); assertEquals(28, manifest.getInt("databaseVersion"))
             val records = json(archive.getValue("records.json")); val saved = records.getJSONObject("tables").getJSONArray(table)
             assertEquals(5, saved.length()); assertEquals(12, saved.getJSONObject(0).length())
             assertEquals(BackupResult.Restored(2), target.backup(docs).restore("content://backup"))
@@ -144,7 +144,7 @@ class EpubRangeBackupTest {
             }
             source.db.close()
             source = source.copy(db = Room.databaseBuilder(context, LibraryDatabase::class.java, source.databaseName)
-                .addMigrations(LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26).build())
+                .addMigrations(LibraryDatabase.MIGRATION_17_18, LibraryDatabase.MIGRATION_18_19, LibraryDatabase.MIGRATION_19_20, LibraryDatabase.MIGRATION_20_21, LibraryDatabase.MIGRATION_21_22, LibraryDatabase.MIGRATION_22_23, LibraryDatabase.MIGRATION_23_24, LibraryDatabase.MIGRATION_24_25, LibraryDatabase.MIGRATION_25_26, LibraryDatabase.MIGRATION_26_27, LibraryDatabase.MIGRATION_27_28).build())
             assertEquals(0, count(source, table)); assertOldData(source)
             assertEquals(BackupResult.Created(2), source.backup(docs).create("content://backup"))
             assertEquals(BackupResult.Restored(2), target.backup(docs).restore("content://backup"))

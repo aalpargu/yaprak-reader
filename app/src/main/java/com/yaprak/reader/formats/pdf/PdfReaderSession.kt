@@ -29,6 +29,7 @@ internal class PdfReaderSession(
     private val fileMutex: kotlinx.coroutines.sync.Mutex = kotlinx.coroutines.sync.Mutex(),
     private val validateIndexedBook: suspend (Book) -> Unit = {},
     private val outlineReader: PdfOutlineReader? = null,
+    private val ink: com.yaprak.reader.domain.pdfink.PdfInkRepository? = null,
 ) : ReaderSession {
     private val thumbnails = DocumentPdfThumbnailsSource(document)
     private val visibilityClosed = MutableStateFlow(false)
@@ -41,7 +42,7 @@ internal class PdfReaderSession(
         generation.value++; val owner = generation.value
         val current = { !visibilityClosed.value && owner == generation.value && document.isOpen }
         val resumePosition = PdfPosition.decodeResume(initial, document.pageCount)
-        val pdf = PdfReaderFragment(document, resumePosition.pageIndex, onTap, book, annotations, current, scrollPreferred, resumePosition.anchorY, navigationPreferred)
+        val pdf = PdfReaderFragment(document, resumePosition.pageIndex, onTap, book, annotations, current, scrollPreferred, resumePosition.anchorY, navigationPreferred, ink)
         val ocr = ocrFactory?.invoke { pdf.bookmarkPage }
         val links = if (document.linksSupported) DocumentPdfPageLinksSource(document,
             activePage = { if (current()) pdf.bookmarkPage else null }, navigate = { current() && pdf.goTo(it) }).also { source ->
@@ -59,6 +60,7 @@ internal class PdfReaderSession(
             } }
             override val textSelection = pdf.textSelection
             override val pdfOcr = ocr
+            override val pdfInk: com.yaprak.reader.reader.PdfInkTool? = pdf.ink
             override val pdfPageLinks = links
             override val pdfAnnotationNavigator = if (document.textSupported)
                 com.yaprak.reader.reader.PdfAnnotationNavigator { anchor ->

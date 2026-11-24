@@ -348,7 +348,7 @@ class SavedWordPracticeUiTest {
             val restore = action("saved-word-practice-restore-order")
             compose.runOnIdle { state = gated }
             compose.onNodeWithTag("saved-word-practice-english").assertDoesNotExist()
-            compose.onNodeWithTag("saved-word-practice-start").assertIsNotEnabled()
+            compose.onAllNodesWithTag("saved-word-practice-start").fetchSemanticsNodes().forEach { assertTrue(it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)) } // hidden behind the editor or disabled
             compose.runOnIdle { startAction(); reveal(); shuffle(); restore() }
             compose.onNodeWithTag("saved-word-practice-english").assertDoesNotExist()
             compose.runOnIdle { state = loaded }

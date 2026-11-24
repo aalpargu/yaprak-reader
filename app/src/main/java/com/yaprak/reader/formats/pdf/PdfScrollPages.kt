@@ -36,11 +36,11 @@ internal fun PdfScrollPages(renderPage: suspend (Int, Int) -> Bitmap,
     nightMode: Boolean, fitRequest: PdfFitRequest, cropRequest: PdfCropRequest,
     allowed: () -> Boolean, onPrimaryChanged: () -> Unit,
     onTextSelection: ((Int, PdfTextPoint, PdfTextPoint) -> Unit)?,
-    annotationPaint: PdfAnnotationPaintState?, drawProofHost: PdfDrawProofView?, onReaderTap: ((ReaderTap) -> Boolean)?) {
+    annotationPaint: PdfAnnotationPaintState?, drawProofHost: PdfDrawProofView?, onReaderTap: ((ReaderTap) -> Boolean)?, selectionController: PdfTextSelectionSource? = null) {
     val command by status.scrollNavigation.collectAsState()
     val list = rememberLazyListState(initialFirstVisibleItemIndex = command.pageIndex)
     val failedItems by status.failedScrollItems.collectAsState()
-    var completedCommand by remember { mutableLongStateOf(-1) }
+    var completedCommand by remember { mutableStateOf<Pair<Long, PdfScrollViewport>?>(null) }
     val currentPrimaryChanged by rememberUpdatedState(onPrimaryChanged)
     val currentAllowed by rememberUpdatedState(allowed)
     // The owner may read StateFlow values or lifecycle state, which do not invalidate this composition.
@@ -70,7 +70,12 @@ internal fun PdfScrollPages(renderPage: suspend (Int, Int) -> Bitmap,
         // BoxWithConstraints may still be measuring when a viewport effect starts.
         // Observe actual placement after the requested next layout, not the requested index alone.
         suspend fun place(offset: Int) {
-            list.requestScrollToItem(command.pageIndex, offset)
+            val measured = list.layoutInfo.viewportSize
+            // A request is only applied by a later remeasure; once the list already has this viewport,
+            // scroll directly. Otherwise a zoomed page that triggers no remeasure leaves the command
+            // unsettled forever (a same-page bookmark/annotation jump would never paint).
+            if (measured.width == viewportWidth && measured.height == viewportHeight) list.scrollToItem(command.pageIndex, offset)
+            else list.requestScrollToItem(command.pageIndex, offset)
             snapshotFlow {
                 val layout = list.layoutInfo
                 !list.isScrollInProgress && layout.viewportSize.width == viewportWidth &&
@@ -80,7 +85,14 @@ internal fun PdfScrollPages(renderPage: suspend (Int, Int) -> Bitmap,
             }.first { it }
             currentCoroutineContext().ensureActive()
         }
-        place(0)
+        // A page-only command for the page that already covers the top of the screen keeps the
+        // reader's point (and zoom) instead of snapping back to that page's head.
+        val layoutNow = list.layoutInfo
+        val readingInside = command.anchorY == null && layoutNow.viewportSize.width == viewportWidth &&
+            layoutNow.viewportSize.height == viewportHeight && layoutNow.visibleItemsInfo.any {
+                it.index == command.pageIndex && it.offset < layoutNow.viewportStartOffset &&
+                    it.offset + it.size > layoutNow.viewportStartOffset }
+        if (!readingInside) place(0)
         if (status.scrollNavigation.value != command) return@LaunchedEffect
         command.anchorY?.let { anchor ->
             val offset = snapshotFlow {
@@ -97,10 +109,15 @@ internal fun PdfScrollPages(renderPage: suspend (Int, Int) -> Bitmap,
             place(offset)
         }
         currentCoroutineContext().ensureActive()
-        if (status.scrollNavigation.value == command) completedCommand = command.revision
+        if (status.scrollNavigation.value == command) completedCommand = command.revision to viewport
     }
-    LaunchedEffect(list, status, readingInset) {
-        snapshotFlow { list.layoutInfo to completedCommand }.collect { (layout, completed) ->
+    LaunchedEffect(list, status, readingInset, viewport, command) {
+        // A completed old viewport cannot admit the intermediate page head while this
+        // viewport's original-point placement is still running (including recreation).
+        snapshotFlow { list.layoutInfo to completedCommand?.takeIf {
+            it.second == viewport && it.first == command.revision
+        }?.first }.collect { (layout, stamp) ->
+            val completed = stamp ?: -1L
             val items = layout.visibleItemsInfo.filter { it.offset.toLong() < layout.viewportEndOffset &&
                 it.offset.toLong() + it.size > layout.viewportStartOffset }
             val primary = if (completed == status.scrollNavigation.value.revision)
@@ -112,6 +129,7 @@ internal fun PdfScrollPages(renderPage: suspend (Int, Int) -> Bitmap,
             drawProofHost?.invalidate()
         }
     }
+    CompositionLocalProvider(com.yaprak.reader.formats.pdf.ink.LocalPdfInkScroll provides { delta -> list.dispatchRawDelta(-delta.y) }) {
     LazyColumn(state = list, userScrollEnabled = allowed(), verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = with(density) { (viewportHeight - lastHeight).coerceAtLeast(0).toDp() }),
         modifier = Modifier.fillMaxSize().nestedScroll(navigationGate).testTag("pdf-continuous-pages")
@@ -173,7 +191,8 @@ internal fun PdfScrollPages(renderPage: suspend (Int, Int) -> Bitmap,
                         { rendered, ticket -> status.finishRender(rendered, ticket); drawProofHost?.invalidate() },
                         nightMode = nightMode, onRenderFailed = status::failRender,
                         fitRequest = fitRequest, cropRequest = cropRequest, applySystemBarsPadding = false,
-                        onTextSelection = onTextSelection,
+                        onTextSelection = onTextSelection, selectionController = selectionController, onSelectionPage = { status.adoptScrollPrimary(it) },
+                        awaitSelectionPage = { page -> kotlinx.coroutines.withTimeoutOrNull(1_500) { status.drawnPage.first { it == page } } },
                         verifiedAnnotations = (annotationPaint as? PdfAnnotationPaintState.Ready)?.annotations.orEmpty(),
                         drawWitness = witness, parentScrolls = true,
                         pointNavigationRevision = command.pointRevision(index), onContentTap = { point, viewport ->
@@ -190,5 +209,6 @@ internal fun PdfScrollPages(renderPage: suspend (Int, Int) -> Bitmap,
                 }
             }
         }
+    }
     }
 }

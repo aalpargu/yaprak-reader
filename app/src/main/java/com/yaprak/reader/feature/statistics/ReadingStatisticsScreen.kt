@@ -4,10 +4,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -21,7 +24,7 @@ internal fun ReadingStatisticsScreen(state: ReadingStatisticsState, onRetry: (Lo
     goalState: DailyReadingGoalState? = null, onGoalOpen: ((Long) -> Unit)? = null,
     onGoalRetry: ((Long) -> Unit)? = null, onCompletionHistory: (() -> Unit)? = null,
     weeklyState: WeeklyReadingGoalState? = null, onWeeklyOpen: ((Long) -> Unit)? = null,
-    onWeeklyRetry: ((Long) -> Unit)? = null) {
+    onWeeklyRetry: ((Long) -> Unit)? = null, reminder: (@Composable () -> Unit)? = null) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var chosenMonth by rememberSaveable { mutableStateOf<String?>(null) }
     val liveState by rememberUpdatedState(state)
@@ -36,50 +39,33 @@ internal fun ReadingStatisticsScreen(state: ReadingStatisticsState, onRetry: (Lo
     fun mayAct() = lease.active && liveState.active && liveGoal?.editor == null && liveWeekly?.editor == null &&
         liveGoal?.saving != true && liveWeekly?.saving != true
     val streak = remember(state.snapshot, state.today, state.active, state.loading, state.failure) { state.readingStreak }
+    var infoOpen by rememberSaveable { mutableStateOf(false) }
     Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp)) {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("statistics-body"),
-                verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
-                item {
-                    Text(stringResource(R.string.reading_statistics_title), Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.headlineSmall)
-                    Text(stringResource(R.string.reading_statistics_help), Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.reading_statistics_scope), Modifier.fillMaxWidth())
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                IconButton({ if (mayAct()) onBack() }, Modifier.testTag("statistics-back"), enabled = state.active) {
+                    Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.reading_statistics_back))
                 }
-                onCompletionHistory?.let { action -> item {
-                    TextButton(onClick = { if (mayAct()) action() }, enabled = mayAct(),
-                        modifier = Modifier.fillMaxWidth().testTag("statistics-completion-history")) { Text("Kitap bitirme geçmişi") }
-                } }
-                goalState?.let { goal -> item(key = "daily-goal") {
-                    DailyReadingGoalPanel(state, goal,
-                        onOpen = onGoalOpen?.let { callback -> { revision ->
-                            val current = liveGoal
-                            if (mayAct() && liveGoalOpen === callback && current?.active == true &&
-                                current.revision == revision && current.known && !current.saving && current.editor == null)
-                                callback(revision)
-                        } },
-                        onRetry = onGoalRetry?.let { callback -> { revision ->
-                            val current = liveGoal
-                            if (mayAct() && liveGoalRetry === callback && current?.active == true &&
-                                current.revision == revision && !current.saving && current.readFailure != null)
-                                callback(revision)
-                        } })
-                } }
-                weeklyState?.let { goal -> item(key = "weekly-goal") {
-                    WeeklyReadingGoalPanel(state, goal,
-                        onOpen = onWeeklyOpen?.let { callback -> { revision ->
-                            val current = liveWeekly
-                            if (mayAct() && liveWeeklyOpen === callback && current?.active == true &&
-                                current.revision == revision && current.known && !current.saving && current.editor == null)
-                                callback(revision)
-                        } },
-                        onRetry = onWeeklyRetry?.let { callback -> { revision ->
-                            val current = liveWeekly
-                            if (mayAct() && liveWeeklyRetry === callback && current?.active == true &&
-                                current.revision == revision && !current.saving && current.readFailure != null)
-                                callback(revision)
-                        } })
-                } }
+                Text(stringResource(R.string.reading_statistics_title), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                IconButton({ infoOpen = !infoOpen }) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Info, contentDescription = "Nasıl ölçülür?")
+                }
+            }
+            LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp).testTag("statistics-body"),
+                verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+                if (infoOpen) item("info") {
+                    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.medium) {
+                        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(stringResource(R.string.reading_statistics_help), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.reading_statistics_scope), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.reading_statistics_dates_help), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.reading_statistics_zone, state.zoneId), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.reading_streak_help), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.reading_statistics_completed_help), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
                 when {
                     state.loading -> item { Text(stringResource(R.string.reading_statistics_loading), Modifier.fillMaxWidth()) }
                     state.failure != null -> item {
@@ -101,48 +87,79 @@ internal fun ReadingStatisticsScreen(state: ReadingStatisticsState, onRetry: (Lo
                         }
                     }
                     state.snapshot != null -> {
-                        item {
-                            Statistic(stringResource(R.string.reading_statistics_today, state.today.toString()), state.todayMillis, "statistics-today")
-                            Statistic(stringResource(R.string.reading_statistics_week), state.lastSevenMillis, "statistics-week")
-                            Text(stringResource(R.string.reading_statistics_period, state.today.minusDays(6).toString(),
-                                state.today.toString()), Modifier.fillMaxWidth())
-                            Statistic(stringResource(R.string.reading_statistics_total), state.snapshot.totalMillis, "statistics-total")
-                            Text(stringResource(R.string.reading_statistics_zone, state.zoneId), Modifier.fillMaxWidth())
-                            Text(stringResource(R.string.reading_statistics_dates_help), Modifier.fillMaxWidth())
-                            if (state.snapshot.totalMillis == 0L)
-                                Text(stringResource(R.string.reading_statistics_empty), Modifier.fillMaxWidth())
-                        }
-                        item("daily-average") {
-                            Statistic(stringResource(R.string.reading_statistics_average), state.dailyAverageMillis, "statistics-average")
-                            Text(stringResource(R.string.reading_statistics_average_help), Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall)
-                        }
-                        item("reading-days") {
-                            Text(stringResource(R.string.reading_statistics_days, state.readingDaysLastSeven),
-                                Modifier.fillMaxWidth().testTag("statistics-reading-days"), style = MaterialTheme.typography.titleMedium)
-                        }
-                        streak?.let { value ->
-                            item("current-streak") {
-                                Text(stringResource(R.string.reading_streak_current, value.currentDays),
-                                    Modifier.fillMaxWidth().testTag("statistics-streak-current"), style = MaterialTheme.typography.titleMedium)
-                            }
-                            item("longest-streak") {
-                                Text(stringResource(R.string.reading_streak_longest, value.longestDays),
-                                    Modifier.fillMaxWidth().testTag("statistics-streak-longest"), style = MaterialTheme.typography.titleMedium)
-                            }
-                            value.lastReadingDate?.let { last -> item("last-reading-day") {
-                                Text(stringResource(R.string.reading_streak_last, last.toString()),
-                                    Modifier.fillMaxWidth().testTag("statistics-streak-last"))
-                            } }
-                            item("streak-help") {
-                                Text(stringResource(R.string.reading_streak_help), Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.bodySmall)
+                        item("tiles") {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    StatTile("Bugün", durationText(state.todayMillis), Modifier.weight(1f).testTag("statistics-today"))
+                                    StatTile("Son 7 gün", durationText(state.lastSevenMillis), Modifier.weight(1f).testTag("statistics-week"))
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    // A series is shown only from a current, verified snapshot; never a former value.
+                                    if (streak != null) StatTile("Okuma serisi", "${streak.currentDays} gün",
+                                        Modifier.weight(1f).testTag("statistics-streak-current"),
+                                        "En uzun: ${streak.longestDays} gün")
+                                    else StatTile("Okuma serisi", "—", Modifier.weight(1f))
+                                    StatTile("Toplam", durationText(state.snapshot.totalMillis), Modifier.weight(1f).testTag("statistics-total"),
+                                        "Bitirilen kitap: ${state.completedBookCount}")
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    StatTile("Günlük ortalama", durationText(state.dailyAverageMillis), Modifier.weight(1f).testTag("statistics-average"),
+                                        "son 7 gün")
+                                    StatTile("Okunan gün", "${state.readingDaysLastSeven} / 7", Modifier.weight(1f).testTag("statistics-reading-days"),
+                                        streak?.lastReadingDate?.let { "Son: $it" })
+                                }
+                                // Pages appear only once the reader has counted some; older time has no page data.
+                                state.lastSevenPages?.let { pages ->
+                                    StatTile("Okunan sayfa · son 7 gün", "$pages", Modifier.fillMaxWidth().testTag("statistics-pages"),
+                                        state.todayPages?.let { "Bugün: $it" })
+                                }
+                                if (state.snapshot.totalMillis == 0L)
+                                    Text(stringResource(R.string.reading_statistics_empty), Modifier.fillMaxWidth(),
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        item("completed-books") {
-                            Text(stringResource(R.string.reading_statistics_completed, state.completedBookCount),
-                                Modifier.fillMaxWidth().testTag("statistics-completed"), style = MaterialTheme.typography.titleMedium)
-                            Text(stringResource(R.string.reading_statistics_completed_help), Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall)
-                        }
+                    }
+                }
+                goalState?.let { goal -> item(key = "daily-goal") {
+                    GoalCard {
+                        DailyReadingGoalPanel(state, goal,
+                            onOpen = onGoalOpen?.let { callback -> { revision ->
+                                val current = liveGoal
+                                if (mayAct() && liveGoalOpen === callback && current?.active == true &&
+                                    current.revision == revision && current.known && !current.saving && current.editor == null)
+                                    callback(revision)
+                            } },
+                            onRetry = onGoalRetry?.let { callback -> { revision ->
+                                val current = liveGoal
+                                if (mayAct() && liveGoalRetry === callback && current?.active == true &&
+                                    current.revision == revision && !current.saving && current.readFailure != null)
+                                    callback(revision)
+                            } })
+                    }
+                } }
+                reminder?.let { panel -> item(key = "reading-reminder") { GoalCard { panel() } } }
+                weeklyState?.let { goal -> item(key = "weekly-goal") {
+                    GoalCard {
+                        WeeklyReadingGoalPanel(state, goal,
+                            onOpen = onWeeklyOpen?.let { callback -> { revision ->
+                                val current = liveWeekly
+                                if (mayAct() && liveWeeklyOpen === callback && current?.active == true &&
+                                    current.revision == revision && current.known && !current.saving && current.editor == null)
+                                    callback(revision)
+                            } },
+                            onRetry = onWeeklyRetry?.let { callback -> { revision ->
+                                val current = liveWeekly
+                                if (mayAct() && liveWeeklyRetry === callback && current?.active == true &&
+                                    current.revision == revision && !current.saving && current.readFailure != null)
+                                    callback(revision)
+                            } })
+                    }
+                } }
+                onCompletionHistory?.let { action -> item {
+                    OutlinedButton(onClick = { if (mayAct()) action() }, enabled = mayAct(),
+                        modifier = Modifier.fillMaxWidth().testTag("statistics-completion-history")) { Text("Kitap bitirme geçmişi") }
+                } }
+                if (state.snapshot != null && !state.loading && state.failure == null) {
                         item {
                             val renderedExpanded = expanded
                             val snapshot = state.snapshot
@@ -151,7 +168,7 @@ internal fun ReadingStatisticsScreen(state: ReadingStatisticsState, onRetry: (Lo
                             key(renderedExpanded, snapshot, today, revision, state.active) {
                                 val actionLease = remember { ReadingStatisticsScreenLease() }
                                 DisposableEffect(actionLease) { onDispose { actionLease.active = false } }
-                                Button({
+                                OutlinedButton({
                                     if (actionLease.active && mayAct() && !liveState.loading && liveState.failure == null &&
                                         liveState.snapshot === snapshot && liveState.today == today && liveState.revision == revision &&
                                         expanded == renderedExpanded) expanded = !renderedExpanded
@@ -193,15 +210,12 @@ internal fun ReadingStatisticsScreen(state: ReadingStatisticsState, onRetry: (Lo
                                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                     Text(book.book.title, Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium)
                                     book.book.authors?.let { Text(it, Modifier.fillMaxWidth()) }
-                                    Text(durationText(book.totalMillis), Modifier.fillMaxWidth())
+                                    Text(listOfNotNull(durationText(book.totalMillis), book.pages?.let { "$it sayfa" })
+                                        .joinToString(" · "), Modifier.fillMaxWidth())
                                 }
                             }
                         }
                     }
-                }
-            }
-            Button({ if (mayAct()) onBack() }, Modifier.fillMaxWidth().padding(vertical = 8.dp).testTag("statistics-back"), enabled = state.active) {
-                Text(stringResource(R.string.reading_statistics_back), Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             }
         }
     }
@@ -303,6 +317,24 @@ private fun WeeklyReadingGoalPanel(statistics: ReadingStatisticsState, goal: Wee
                 }
             }
         }
+    }
+}
+
+@Composable private fun StatTile(label: String, value: String, modifier: Modifier = Modifier, caption: String? = null) {
+    // One accessibility node per tile, read as "label, value, caption".
+    Surface(modifier.semantics(mergeDescendants = true) {}, color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large) {
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleLarge)
+            if (caption != null) Text(caption, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable private fun GoalCard(content: @Composable () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.large) {
+        Box(Modifier.fillMaxWidth().padding(14.dp)) { content() }
     }
 }
 

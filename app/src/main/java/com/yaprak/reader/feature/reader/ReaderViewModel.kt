@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import com.yaprak.reader.domain.library.Book
 import com.yaprak.reader.domain.statistics.ReadingDurationRepository
 import com.yaprak.reader.domain.statistics.ReadingDurationFailure
@@ -47,6 +48,7 @@ class ReaderViewModel(private val bookId: String, private val loader: ReaderLoad
         private set
     private var latestSnapshot: ReadingSnapshot? = null
     private var session: ReaderSession? = null
+    private var cleared = false
 
     init {
         load()
@@ -73,6 +75,24 @@ class ReaderViewModel(private val bookId: String, private val loader: ReaderLoad
         }
     }
 
+    /** A saved panel is presentation only. Re-prove imported bytes through the existing loader
+     * before a recreated Activity exposes any restored editor on a new rendering surface. */
+    internal suspend fun verifyRestorationSource(expected: Book): Boolean {
+        val retained = session ?: return false
+        if (cleared || (_state.value as? ReaderState.Ready)?.session !== retained ||
+            retained.book.id != expected.id || retained.book.sha256 != expected.sha256) return false
+        val verified = loader.open(expected.id)
+        try {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            return !cleared && session === retained && (_state.value as? ReaderState.Ready)?.session === retained &&
+                verified.book.let { book -> book.id == expected.id && book.sha256 == expected.sha256 &&
+                    book.format == expected.format && book.storageName == expected.storageName && book.byteSize == expected.byteSize }
+        } finally {
+            // Some controlled loaders return the live session; validation must never close it.
+            if (verified !== retained && verified !== session) verified.close()
+        }
+    }
+
     fun retryOpen() { if (_state.value is ReaderState.Error) load() }
     private fun load() {
         _state.value = ReaderState.Loading
@@ -89,6 +109,8 @@ class ReaderViewModel(private val bookId: String, private val loader: ReaderLoad
     }
 
     @MainThread fun observe(snapshot: ReadingSnapshot) {
+        // Observation only runs while the page is really on screen for reading (coverage gate).
+        com.yaprak.reader.domain.statistics.readingPageKey(snapshot.location)?.let { duration?.pageShown(it) }
         latestLocation = snapshot.location
         latestSnapshot = snapshot
         if (session?.book?.format == com.yaprak.reader.domain.library.BookFormat.PDF && snapshot.spans.isEmpty()) {
@@ -126,5 +148,5 @@ class ReaderViewModel(private val bookId: String, private val loader: ReaderLoad
             abandoned.completed?.cancel()
         }
     }
-    override fun onCleared() { discardPendingWrites(); session?.close() }
+    override fun onCleared() { cleared = true; discardPendingWrites(); session?.close() }
 }

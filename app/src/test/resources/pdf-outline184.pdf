@@ -1,0 +1,71 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /Names << /Dests << /Names [(later) [4 0 R /FitH 440]] >> >> /Outlines 10 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 3 /Kids [3 0 R 4 0 R 5 0 R] /MediaBox [10 20 230 1020] /CropBox [20 120 220 920] >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 6 0 R >> >> /Contents 7 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 6 0 R >> >> /Contents 8 0 R >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 6 0 R >> >> /Contents 9 0 R >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+7 0 obj
+<< /Length 38 >>
+stream
+BT /F1 12 Tf 30 880 Td (Source) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Length 56 >>
+stream
+0 0 1 rg 20 594 200 12 re f
+1 0 1 rg 20 434 200 12 re f
+endstream
+endobj
+9 0 obj
+<< /Length 41 >>
+stream
+BT /F1 12 Tf 30 880 Td (Following) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Outlines /First 11 0 R /Last 13 0 R /Count 3 >>
+endobj
+11 0 obj
+<< /Title (Direct point) /Parent 10 0 R /Dest [4 0 R /XYZ 20 600 0] /Next 12 0 R >>
+endobj
+12 0 obj
+<< /Title (Named point) /Parent 10 0 R /Dest (later) /Prev 11 0 R /Next 13 0 R >>
+endobj
+13 0 obj
+<< /Title (External web) /Parent 10 0 R /Prev 12 0 R /A << /S /URI /URI (https://example.invalid) >> >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000009 00000 n 
+0000000136 00000 n 
+0000000258 00000 n 
+0000000360 00000 n 
+0000000462 00000 n 
+0000000564 00000 n 
+0000000634 00000 n 
+0000000721 00000 n 
+0000000826 00000 n 
+0000000916 00000 n 
+0000000990 00000 n 
+0000001090 00000 n 
+0000001188 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+1308
+%%EOF

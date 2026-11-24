@@ -1,5 +1,9 @@
 package com.yaprak.reader.reader
 
+import androidx.compose.ui.test.assertIsEnabled
+
+import androidx.compose.ui.test.assertIsDisplayed
+
 import android.graphics.Bitmap
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -31,6 +35,7 @@ import org.junit.runner.RunWith
 /** Actual production format router, page painting, contents, thumbnail UI and persistent resume. */
 @RunWith(AndroidJUnit4::class)
 class CbrReaderDeviceTest {
+    private var waitNumber = 0
     @get:Rule val compose = createEmptyComposeRule()
     @Test fun originalCbrPaintsNavigatesBookmarksThumbnailsAndResumesAfterRecreateAndReopen() = runBlocking { runReader(BookFormat.CBR) }
     @Test fun existingCbzStillPaintsNavigatesBookmarksThumbnailsAndResumes() = runBlocking { runReader(BookFormat.CBZ) }
@@ -65,6 +70,8 @@ class CbrReaderDeviceTest {
             ActivityScenario.launch<ReaderActivity>(ReaderActivity.intent(context, id)).use { scenario ->
                 await { page(scenario) == 0 }
                 capture("${format.extension}-first")
+                showReaderControls(compose, scenario)
+                compose.onNodeWithText("İçerik").performClick()
                 compose.onNodeWithText("İçindekiler").performScrollTo().performClick()
                 await { compose.onAllNodesWithText("Sayfa 2").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Sayfa 2").performScrollTo().performClick()
@@ -74,11 +81,21 @@ class CbrReaderDeviceTest {
                     val resume = container.reading.resume(id, hash)
                     resume?.resourceHref == "${format.extension}/pages/10.png" && JSONObject(resume.locatorJson).getInt("pageIndex") == 1
                 }
+                showReaderControls(compose, scenario)
+                compose.onNodeWithText("İçerik").performClick()
                 compose.onNodeWithText("Yer imleri").performScrollTo().performClick()
-                compose.onNodeWithText("Bu konumu kaydet").performClick()
+                // Native dialog focus arrives asynchronously after the menu Window is disposed.
+                // Await the public merged, enabled button; never inject into its hidden unmerged node.
+                await {
+                    compose.onAllNodesWithText("Bu konumu kaydet").fetchSemanticsNodes().singleOrNull()?.config
+                        ?.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled) == false
+                }
+                compose.onNodeWithText("Bu konumu kaydet").assertIsDisplayed().assertIsEnabled().performClick()
                 await { container.bookmarks.observe(id, hash).first().size == 1 }
                 compose.onNodeWithText("Kapat").performClick()
                 instrumentation.uiAutomation.waitForIdle(500, 5_000)
+                showReaderControls(compose, scenario)
+                compose.onNodeWithText("İçerik").performClick()
                 compose.onNodeWithText("Sayfa küçük resimleri").performScrollTo().performClick()
                 await { compose.onAllNodesWithText("Sayfa 1").fetchSemanticsNodes().isNotEmpty() }
                 await {
@@ -89,12 +106,14 @@ class CbrReaderDeviceTest {
                 compose.onNodeWithText("Sayfa 1").performScrollTo().performClick()
                 await { page(scenario) == 0 }
                 modalClosed()
+                showReaderControls(compose, scenario)
+                compose.onNodeWithText("İçerik").performClick()
                 compose.onNodeWithText("Yer imleri").performScrollTo().performClick()
                 await { compose.onAllNodesWithText("Sayfa 2").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Sayfa 2").performScrollTo().performClick()
                 await { page(scenario) == 1 }
                 modalClosed()
-                compose.onNodeWithText("Gizle").performClick()
+                if (compose.onAllNodesWithText("Gizle").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("Gizle").performClick()
                 capture("${format.extension}-second")
                 scenario.recreate()
                 await { page(scenario) == 1 }
@@ -122,7 +141,12 @@ class CbrReaderDeviceTest {
         return value
     }
     private suspend fun await(condition: suspend () -> Boolean) {
-        withTimeout(20_000) { while (true) { compose.waitForIdle(); if (condition()) break; delay(50) } }
+        val stage = ++waitNumber
+        try { withTimeout(20_000) { while (true) { compose.waitForIdle(); if (condition()) break; delay(50) } }
+        } catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+            capture("timeout-$stage")
+            throw AssertionError("Actual comic stage $stage timed out", timeout)
+        }
     }
     private fun modalClosed() {
         compose.waitForIdle()

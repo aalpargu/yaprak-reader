@@ -31,13 +31,16 @@ class ReadingStatisticsActivity : ComponentActivity() {
         val completionFactory = viewModelFactory { initializer { BookCompletionViewModel(container.bookCompletions) } }
         val weeklyFactory = viewModelFactory { initializer { WeeklyReadingGoalViewModel(container.weeklyReadingGoal) } }
         val goalFactory = viewModelFactory { initializer { DailyReadingGoalViewModel(container.readingGoal) } }
+        val reminderFactory = viewModelFactory { initializer { ReadingReminderViewModel(container.readingReminder) { minute ->
+            com.yaprak.reader.data.reminder.ReadingReminderAlarms.schedule(applicationContext, minute) } } }
         setContent {
             YaprakTheme {
                 val startup by container.startup.state.collectAsStateWithLifecycle()
                 when (startup) {
                     StartupState.Ready -> ReadingStatisticsRoute(viewModel(factory = factory),
                         viewModel<DailyReadingGoalViewModel>(factory = goalFactory), ::finish,
-                        completionModel = viewModel(factory = completionFactory), weeklyModel = viewModel(factory = weeklyFactory))
+                        completionModel = viewModel(factory = completionFactory), weeklyModel = viewModel(factory = weeklyFactory),
+                        reminderModel = viewModel(factory = reminderFactory))
                     StartupState.Loading, StartupState.Failed -> Surface(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
                             verticalArrangement = Arrangement.Center) {

@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.content.pm.ActivityInfo
 import android.os.Handler
 import android.os.Looper
@@ -115,7 +116,8 @@ class ReaderOrientationActivityTest {
             assertEquals(session.resume, session.initials.single())
             assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE, host.get().requestedOrientation)
             val surface = session.surfaces.single()
-            surface.tap(); runCurrent()
+            // The reader now opens full screen; a tap would show the tools. Keep them hidden for reading.
+            host.get().chrome = false; runCurrent()
             assertTrue(surface.swipeAllowed!!.invoke())
             assertTrue(surface.coverageAllowed!!.invoke())
             invoke(host.get(), "captureSelectedText"); runCurrent()
@@ -127,7 +129,7 @@ class ReaderOrientationActivityTest {
             assertTrue(orientation.state.value.open)
             assertFalse(surface.swipeAllowed!!.invoke()); assertFalse(surface.coverageAllowed!!.invoke())
             invoke(host.get(), "fitPdf", Boolean::class.javaPrimitiveType!!, true)
-            val navigation = host.get().javaClass.getDeclaredMethod("navigate", Function0::class.java).apply { isAccessible = true }
+            val navigation = host.get().javaClass.readerMethod("navigate", Function0::class.java).apply { isAccessible = true }
             assertFalse(navigation.invoke(host.get(), { surface.forward() }) as Boolean)
             assertEquals(1, surface.fits); assertEquals(0, surface.forwardCalls)
             surface.selection.complete(SelectedText("Late result")); runCurrent()
@@ -190,11 +192,11 @@ class ReaderOrientationActivityTest {
     }
 
     private fun invoke(activity: ReaderActivity, name: String) {
-        activity.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(name).apply { isAccessible = true }.invoke(activity)
     }
     private fun invoke(activity: ReaderActivity, name: String, type: Class<*>, argument: Any) {
-        activity.javaClass.getDeclaredMethod(name, type).apply { isAccessible = true }.invoke(activity, argument)
+        activity.javaClass.readerMethod(name, type).apply { isAccessible = true }.invoke(activity, argument)
     }
     private fun property(activity: ReaderActivity, getter: String): Any? =
-        activity.javaClass.getDeclaredMethod(getter).apply { isAccessible = true }.invoke(activity)
+        activity.javaClass.readerMethod(getter).apply { isAccessible = true }.invoke(activity)
 }

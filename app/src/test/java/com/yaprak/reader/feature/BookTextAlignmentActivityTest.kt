@@ -1,5 +1,6 @@
 package com.yaprak.reader.feature
 
+import com.yaprak.reader.readerMethod
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
@@ -90,7 +91,7 @@ class BookTextAlignmentActivityTest {
                 host.start().resume().visible().windowFocusChanged(true)
                 await { session.surfaces.lastOrNull()?.submitted?.isNotEmpty() == true }
                 var activity = host.get()
-                fun editor(): BookTextAlignmentViewModel = activity.javaClass.getDeclaredMethod("getBookTextAlignment")
+                fun editor(): BookTextAlignmentViewModel = activity.javaClass.readerMethod("getBookTextAlignment")
                     .apply { isAccessible = true }.invoke(activity) as BookTextAlignmentViewModel
                 val editor = editor()
                 assertFalse(editor.state.value.loading)
@@ -103,8 +104,8 @@ class BookTextAlignmentActivityTest {
                 val key = KeyEvent(11, 11, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN, 0)
                 activity.window.callback.dispatchKeyEvent(key)
                 assertEquals(0, session.surfaces.last().forwards)
-                activity.javaClass.getDeclaredMethod("openBrightness").apply { isAccessible = true }.invoke(activity)
-                assertEquals(false, activity.javaClass.getDeclaredMethod("getBrightnessOpen").apply { isAccessible = true }.invoke(activity))
+                activity.javaClass.readerMethod("openBrightness").apply { isAccessible = true }.invoke(activity)
+                assertEquals(false, activity.javaClass.readerMethod("getBrightnessOpen").apply { isAccessible = true }.invoke(activity))
                 editor.dismiss(); tick()
                 assertNull(container.bookTextAlignments.observe(session.book.id, session.book.sha256).first())
                 editor.open(); editor.edit(ReadingTextAlignment.PUBLISHER); editor.save()
@@ -133,7 +134,7 @@ class BookTextAlignmentActivityTest {
             tick()
         }
         fun flag(activity: ReaderActivity, name: String, value: Boolean) = activity.javaClass
-            .getDeclaredMethod("set" + name.replaceFirstChar { it.uppercase() }, Boolean::class.javaPrimitiveType!!)
+            .readerMethod("set" + name.replaceFirstChar { it.uppercase() }, Boolean::class.javaPrimitiveType!!)
             .apply { isAccessible = true }.invoke(activity, value)
     }
 }

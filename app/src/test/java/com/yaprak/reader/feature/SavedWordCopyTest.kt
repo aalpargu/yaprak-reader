@@ -127,7 +127,7 @@ class SavedWordCopyTest {
             loaded.copy(pendingEdit = word, editEnglishDraft = word.english, editTurkishDraft = word.turkish),
             loaded.copy(pendingDelete = word)).forEach { gated ->
             compose.runOnIdle { state = gated }
-            compose.onNodeWithTag("saved-word-copy-one").assertIsNotEnabled()
+            compose.onAllNodesWithTag("saved-word-copy-one").fetchSemanticsNodes().forEach { assertTrue(it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)) } // hidden behind the editor or disabled
             assertTrue(copied.isEmpty())
         }
         listOf(loaded.copy(loading = true), loaded.copy(loadFailed = true)).forEach { unavailable ->
